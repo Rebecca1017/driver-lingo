@@ -128,6 +128,19 @@
   .mic:disabled{background:#cbd2da; color:#7b8794; box-shadow:none;}
   .mic-hint{font-size:14px; color:var(--faint); margin-top:10px;}
   .sub-actions{display:flex; gap:10px; justify-content:center; margin-top:12px;}
+  /* 微信里用的「键盘说话」主按钮 */
+  .kb-main{
+    width:100%; max-width:340px; border:0; border-radius:26px; color:#fff; padding:22px 16px;
+    display:flex; flex-direction:column; align-items:center; gap:6px; box-shadow:var(--shadow);
+    background:linear-gradient(135deg,#0f8a4d,#0a6a3b); margin:0 auto;
+  }
+  .kb-main:active{transform:scale(.985);}
+  .kb-main .k1{font-size:26px; font-weight:750; letter-spacing:1px;}
+  .kb-main .k2{font-size:14px; opacity:.9;}
+  .link-btn{
+    border:0; background:transparent; color:var(--driver); font-size:15px; font-weight:600;
+    min-height:44px; padding:8px 12px; text-decoration:underline;
+  }
 
   /* ---------- 常用表达 ---------- */
   .cat-row{display:flex; gap:8px; overflow-x:auto; padding:12px 14px 4px; flex:0 0 auto; scrollbar-width:none;}
@@ -240,9 +253,14 @@
     <div class="quick-row" id="talk-quick"></div>
     <div class="mic-area">
       <div class="wx-tip" id="talk-wx-tip" style="display:none">
-        微信里不能录音：点右上角 <b>···</b> → <b>在浏览器打开</b>，就能按住说话。现在可以点下面的「常用表达」或「打字输入」。
+        微信不允许网页录音，用下面的<b>键盘说话</b>一样能说：
+        点绿色按钮 → 点输入框 → 点键盘上的 <b>🎤</b> 说中文 → 说完点「翻译」。
       </div>
       <div class="status" id="talk-status">按住下面的按钮说话</div>
+      <button class="kb-main" id="btn-kb-voice" style="display:none">
+        <span class="k1">🎤 键盘说话</span>
+        <span class="k2">点这里，再用键盘上的麦克风说中文</span>
+      </button>
       <button class="mic" id="btn-mic">
         <span class="mic-icon" id="mic-icon">🎙️</span>
         <span class="mic-label" id="mic-label">按住说话</span>
@@ -252,6 +270,7 @@
       <div class="sub-actions">
         <button class="mini-btn" id="btn-keyboard">⌨️ 打字输入</button>
         <button class="mini-btn" id="btn-stop">⏹ 停止播放</button>
+        <button class="mini-btn" id="btn-open-browser" style="display:none">🌐 用浏览器打开</button>
       </div>
     </div>
   </section>
@@ -372,6 +391,9 @@
     <div class="field">
       <textarea id="input-area" rows="3" placeholder="在这里输入要翻译的内容"></textarea>
     </div>
+    <div class="wx-tip" id="input-tip" style="display:none">
+      <b>不会打字就用键盘说话：</b>点上面的输入框，再点键盘上的 <b>🎤</b>（有的手机在空格键旁边），说完点「翻译」。
+    </div>
     <div class="confirm-actions">
       <button class="ok-btn" id="input-send">翻译</button>
       <button class="redo-btn" id="input-cancel">取消</button>
@@ -395,6 +417,36 @@
 </div>
 
 <!-- ================= 使用说明 ================= -->
+<!-- ================= 微信使用指南 ================= -->
+<div class="layer" id="wx-guide">
+  <div class="sheet-card">
+    <h2>微信里怎么用</h2>
+    <div class="help-body">
+      <h3>方法一：键盘说话（推荐，就在微信里用）</h3>
+      <ol>
+        <li>点对话页绿色的「🎤 键盘说话」按钮。</li>
+        <li>点一下输入框，手机上会弹出键盘。</li>
+        <li>点键盘上的 <b>🎤</b>（有的手机叫“语音输入”），说一句中文。</li>
+        <li>说完点「翻译」，屏幕上会出现放大的英文，直接给乘客看。</li>
+      </ol>
+      <p id="wx-guide-android-only">大部分安卓手机的键盘麦克风在空格键旁边；苹果手机在键盘右下角。</p>
+      <h3>方法二：改成在浏览器里用（可以用按住说话）</h3>
+      <ol>
+        <li>点微信右上角的 <b>···</b>。</li>
+        <li>选「<b id="wx-open-label">在浏览器打开</b>」。</li>
+        <li>浏览器里点「分享」→「添加到主屏幕」，以后从桌面图标直接点开，不用再经过微信。</li>
+      </ol>
+      <h3>为什么微信里不能按住说话</h3>
+      <p>微信内置的浏览器不允许网页使用麦克风录音，这是微信的限制，所有网站都一样。键盘说话用的是手机系统的语音输入，所以在微信里也能用。</p>
+    </div>
+    <div class="confirm-actions">
+      <button class="ok-btn" id="wx-guide-kb">好，我知道了</button>
+      <button class="redo-btn" id="wx-copy-link">复制链接（方便在浏览器里打开）</button>
+      <button class="redo-btn" id="wx-guide-close">关闭</button>
+    </div>
+  </div>
+</div>
+
 <div class="layer" id="help-layer">
   <div class="sheet-card">
     <h2>使用说明</h2>
@@ -416,7 +468,8 @@
       <h3>听不清 / 手机不认语音</h3>
       <p>请用 Chrome、Edge 或 Safari（iOS 14.5 以上），并且必须通过 https 或 localhost 打开，网页才有权限用麦克风。实在不行，用「打字输入」或「常用表达」。</p>
       <h3>在微信里点开链接</h3>
-      <p>微信内置的浏览器不允许网页使用麦克风，所以按住说话会没反应。请点右上角 <b>···</b>，选「在浏览器打开」，再按提示允许麦克风。建议在浏览器里选「添加到主屏幕」，以后从桌面图标点开就是全屏的，不用再经过微信。</p>
+      <p>微信内置的浏览器不允许网页录音，所以「按住说话」在微信里会没反应。微信里请用<b>键盘说话</b>：点绿色的「🎤 键盘说话」→ 点输入框 → 点键盘上的 🎤 说中文 → 点「翻译」，然后把屏幕上的英文大字给乘客看。</p>
+      <p>想用「按住说话」的话，点右上角 <b>···</b>，选「在浏览器打开」，再允许麦克风；打开后建议选「添加到主屏幕」，以后从桌面图标点开就是全屏的，不用再经过微信。</p>
     </div>
     <div class="confirm-actions">
       <button class="redo-btn" id="help-close">关闭</button>
@@ -628,9 +681,10 @@
 
     var actions = document.createElement('div');
     actions.className = 'entry-actions';
+    var canSpeak = ttsReady(e.lang === 'en' ? 'en-US' : 'zh-CN');
     var play = document.createElement('button');
     play.className = 'mini-btn';
-    play.textContent = '🔊 播放';
+    play.textContent = canSpeak ? '🔊 播放' : '🔊 播放（可能没声音）';
     play.addEventListener('click', function () { speak(e.translation, e.lang === 'en' ? 'en-US' : 'zh-CN'); });
     actions.appendChild(play);
     var slow = document.createElement('button');
@@ -673,7 +727,24 @@
 
   /** 微信内置浏览器不给网页麦克风权限，必须引导到系统浏览器 */
   function isWeChat() {
+    var forced = null;
+    try {
+      var m = location.search.match(/[?&]wx=(0|1)/);
+      if (m) forced = m[1] === '1';
+    } catch (e) {}
+    if (forced !== null) return forced;
     return /micromessenger/i.test(navigator.userAgent || '');
+  }
+  function isIOS() {
+    return /iphone|ipad|ipod/i.test(navigator.userAgent || '') || (/macintosh/i.test(navigator.userAgent || '') && 'ontouchend' in document);
+  }
+  /** 语音播报是否真的能出声（微信里、或没有中文/英文语音包时可能不行） */
+  function ttsReady(lang) {
+    if (!('speechSynthesis' in window)) return false;
+    if (!voices.length) loadVoices();
+    var want = String(lang || 'en').slice(0, 2).toLowerCase();
+    if (!voices.length) return false;
+    return voices.some(function (v) { return (v.lang || '').toLowerCase().indexOf(want) === 0; });
   }
 
   function asrLang() { return state.mode === 'driver' ? 'zh-CN' : 'en-US'; }
@@ -682,7 +753,7 @@
     if (recording) return;
     if (isWeChat()) {
       setStatus('微信里不能录音');
-      toast('点右上角 ··· → 在浏览器打开，就能按住说话翻译了');
+      toast('微信里请用下面的「🎤 键盘说话」，或点「🌐 用浏览器打开」');
       return;
     }
     if (!SR) { toast('这台手机的浏览器不支持语音识别，请用「常用表达」或「打字输入」'); return; }
@@ -820,6 +891,12 @@
       });
       setStatus(state.mode === 'driver' ? '已翻译，正在播报' : 'Done — playing audio');
       speak(result, target === 'en' ? 'en-US' : 'zh-CN');
+      var voiceLang = target === 'en' ? 'en-US' : 'zh-CN';
+      if (isWeChat() && !ttsReady(voiceLang)) {
+        // 微信里常常发不出声音，直接把大字给乘客看
+        openBigCard(result, text, target);
+        setStatus('这台手机可能发不出声音，请把屏幕给乘客看');
+      }
       var spoken = extractAndCompare(text, result);
       if (spoken) setStatus(state.mode === 'driver' ? '⚠️ 数字可能不一致，请再核对一次' : '⚠️ Numbers may differ, please double-check');
     };
@@ -993,7 +1070,9 @@
   function openBigCard(text, sub, lang) {
     state.bigcard = { text: text, lang: lang };
     $('bigcard-text').textContent = text;
-    $('bigcard-sub').textContent = (lang === 'en' ? 'Please read this / 请看这句话' : '请读给司机听') + (sub ? ' · ' + sub : '');
+    var base = lang === 'en' ? 'Please read this / 请看这句话' : '请读给司机听';
+    if (!ttsReady(lang === 'en' ? 'en-US' : 'zh-CN')) base = '把屏幕给乘客看 · ' + base;
+    $('bigcard-sub').textContent = base + (sub ? ' · ' + sub : '');
     openLayer('bigcard');
   }
 
@@ -1012,7 +1091,18 @@
       : 'Speak English; release and the app will speak Chinese to the driver';
     $('btn-keyboard').textContent = mode === 'driver' ? '⌨️ 打字输入' : '⌨️ Type it';
     $('btn-stop').textContent = mode === 'driver' ? '⏹ 停止播放' : '⏹ Stop audio';
-    $('talk-wx-tip').style.display = isWeChat() ? 'block' : 'none';
+    var wx = isWeChat();
+    $('talk-wx-tip').style.display = wx ? 'block' : 'none';
+    $('btn-kb-voice').style.display = wx ? 'flex' : 'none';
+    $('btn-open-browser').style.display = wx ? 'inline-block' : 'none';
+    $('btn-mic').style.display = wx ? 'none' : 'flex';
+    $('btn-kb-voice').querySelector('.k1').textContent = mode === 'driver' ? '🎤 键盘说话' : '🎤 Speak via keyboard';
+    $('btn-kb-voice').querySelector('.k2').textContent = mode === 'driver'
+      ? '点这里，再用键盘上的麦克风说中文'
+      : 'Tap here and use the mic on your keyboard';
+    if (wx) {
+      setStatus(mode === 'driver' ? '点下面的绿色按钮，用键盘说话' : 'Tap the green button and speak via the keyboard');
+    }
     renderQuickChips();
     renderEmptyLog();
   }
@@ -1092,6 +1182,28 @@
 
     $('btn-keyboard').addEventListener('click', openInput);
     $('btn-stop').addEventListener('click', function () { stopSpeaking(); setStatus('已停止播放'); });
+    $('btn-kb-voice').addEventListener('click', function () { openInput(true); });
+    $('btn-open-browser').addEventListener('click', function () { openLayer('wx-guide'); });
+    $('wx-guide-kb').addEventListener('click', function () { closeLayer('wx-guide'); openInput(true); });
+    $('wx-guide-close').addEventListener('click', function () { closeLayer('wx-guide'); });
+    $('wx-copy-link').addEventListener('click', function () {
+      var url = location.href.split('?')[0];
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url);
+        } else {
+          var ta = document.createElement('textarea');
+          ta.value = url;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+        toast('链接已复制：打开 Safari 或 Chrome，粘贴到地址栏即可');
+      } catch (e) {
+        toast('复制失败，请手动输入网址：' + url);
+      }
+    });
 
     /* 确认浮层 */
     $('confirm-yes').addEventListener('click', function () {
@@ -1185,11 +1297,14 @@
     return '偏快';
   }
 
-  function openInput() {
+  function openInput(fromKeyboardVoice) {
     $('input-title').textContent = state.mode === 'driver' ? '打字输入中文' : 'Type in English';
-    $('input-area').placeholder = state.mode === 'driver' ? '输入要说给乘客的中文' : 'Type English for the driver';
+    $('input-area').placeholder = state.mode === 'driver'
+      ? (isWeChat() ? '点这里，然后点键盘上的 🎤 说中文' : '输入要说给乘客的中文')
+      : 'Type English for the driver';
+    $('input-tip').style.display = (isWeChat() || fromKeyboardVoice) ? 'block' : (('speechSynthesis' in window) ? 'block' : 'none');
     openLayer('input-layer');
-    setTimeout(function () { $('input-area').focus(); }, 100);
+    setTimeout(function () { $('input-area').focus(); }, 120);
   }
 
   function openSettings() {
@@ -1273,10 +1388,11 @@
     if (isWeChat()) {
       msgs.push({
         cls: 'banner wx',
-        html: '<div class="big">微信里不能录音</div>'
-          + '请点右上角 <b>···</b> → <b>在浏览器打开</b>，这样按住说话才能用。'
-          + '在浏览器里打开一次后，建议选“添加到主屏幕”，以后一点就进来。<br>'
-          + '现在也可以先用下面的<b>常用表达</b>（点一下就能播报）。'
+        html: '<div class="big">微信里也能用</div>'
+          + '<b>方法一（推荐）</b>：进对话页点绿色「🎤 键盘说话」，用手机键盘上的麦克风说中文。<br>'
+          + '<b>方法二</b>：点右上角 <b>···</b> → <b>' + (isIOS() ? '在Safari中打开' : '在浏览器打开')
+          + '</b>，就能用「按住说话」；打开后建议选“添加到主屏幕”，以后从桌面图标直接进来。<br>'
+          + '不想说话时，点下面的<b>常用表达</b>，点一句就把英文大字给乘客看。'
       });
     }
     if (!window.isSecureContext) {
@@ -1314,6 +1430,15 @@
     setMode('driver');
     renderHome();
     show('screen-home');
+    if (isWeChat()) {
+      $('wx-open-label').textContent = isIOS() ? '在Safari中打开' : '在浏览器打开';
+      var seen = false;
+      try { seen = localStorage.getItem('driver-lingo-wx-guide') === '1'; } catch (e) {}
+      if (!seen) {
+        setTimeout(function () { openLayer('wx-guide'); }, 400);
+        try { localStorage.setItem('driver-lingo-wx-guide', '1'); } catch (e) {}
+      }
+    }
     if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       navigator.serviceWorker.register('sw.js').catch(function () {});
     }
