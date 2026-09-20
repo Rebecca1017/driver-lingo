@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1f6feb"/>
+      <stop offset="1" stop-color="#0c3e98"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- 车顶灯 -->
+  <rect x="210.9" y="120.8" width="90.2" height="31.6" rx="11.3" fill="#ffffff"/>
+  <!-- 车厢 -->
+  <rect x="141.1" y="156.9" width="229.8" height="99.1" rx="27" fill="#ffffff"/>
+  <!-- 挡风玻璃 -->
+  <rect x="163.6" y="177.2" width="184.8" height="67.5" rx="15.8" fill="#1458c8"/>
+  <!-- 车身 -->
+  <rect x="91.5" y="228.9" width="328.9" height="126.2" rx="31.5" fill="#ffffff"/>
+  <!-- 车灯 -->
+  <rect x="105.1" y="289.8" width="36" height="36" rx="9" fill="#ffd24a"/>
+  <rect x="370.9" y="289.8" width="36" height="36" rx="9" fill="#ffd24a"/>
+  <!-- 保险杠 -->
+  <rect x="120.8" y="330.3" width="270.4" height="18.1" rx="9" fill="#e2e9f5"/>
+  <!-- 车轮 -->
+  <ellipse cx="159.1" cy="366.4" rx="38.3" ry="38.3" fill="#091e42"/>
+  <ellipse cx="159.1" cy="366.4" rx="15.8" ry="15.8" fill="#ffffff"/>
+  <ellipse cx="352.9" cy="366.4" rx="38.3" ry="38.3" fill="#091e42"/>
+  <ellipse cx="352.9" cy="366.4" rx="15.8" ry="15.8" fill="#ffffff"/>
+</svg>

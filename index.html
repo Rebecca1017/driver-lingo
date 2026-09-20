@@ -1,0 +1,1326 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>司机英语助手</title>
+<meta name="description" content="中国网约车司机与外国乘客的双向语音沟通助手">
+<meta name="theme-color" content="#f4f5f7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="司机英语助手">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  :root{
+    --bg:#f4f5f7; --card:#ffffff; --line:#e3e6ea;
+    --text:#10151c; --sub:#5b6673; --faint:#8b95a1;
+    --driver:#1f6feb; --driver-2:#1354c4;
+    --passenger:#0f8a4d; --passenger-2:#0a6a3b;
+    --warn:#b45309; --danger:#d92d20;
+    --radius:18px; --shadow:0 6px 24px rgba(16,21,28,.08);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; height:100%;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+    font-size:17px; line-height:1.5; overscroll-behavior:none;
+  }
+  #app{max-width:560px; margin:0 auto; height:100dvh; height:100vh; display:flex; flex-direction:column; overflow:hidden;}
+  .screen{display:none; flex-direction:column; height:100%; min-height:0;}
+  .screen.active{display:flex;}
+  .scroll{flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:16px;}
+
+  /* ---------- 顶栏 ---------- */
+  .topbar{
+    display:flex; align-items:center; gap:8px; padding:10px 12px;
+    padding-top:calc(10px + env(safe-area-inset-top));
+    background:var(--card); border-bottom:1px solid var(--line); flex:0 0 auto;
+  }
+  .topbar h1{font-size:18px; margin:0; flex:1; text-align:center; font-weight:650;}
+  .icon-btn{
+    border:0; background:transparent; color:var(--driver); font-size:16px;
+    min-width:56px; min-height:44px; padding:0 8px; border-radius:12px; font-weight:600;
+  }
+  .icon-btn:active{background:#eef1f5;}
+
+  /* ---------- 首页 ---------- */
+  .home{display:flex; flex-direction:column; gap:16px; padding:22px 16px calc(24px + env(safe-area-inset-bottom));}
+  .brand{text-align:center; padding:14px 0 4px;}
+  .brand .logo{font-size:52px; line-height:1;}
+  .brand h1{font-size:26px; margin:8px 0 4px; letter-spacing:.5px;}
+  .brand p{margin:0; color:var(--sub); font-size:15px;}
+  .big-btn{
+    border:0; border-radius:22px; color:#fff; text-align:left; padding:22px 24px;
+    display:flex; flex-direction:column; gap:4px; box-shadow:var(--shadow); min-height:132px; justify-content:center;
+  }
+  .big-btn .t1{font-size:26px; font-weight:750; letter-spacing:.5px;}
+  .big-btn .t2{font-size:15px; opacity:.9;}
+  .big-btn.driver{background:linear-gradient(135deg,var(--driver),var(--driver-2));}
+  .big-btn.passenger{background:linear-gradient(135deg,var(--passenger),var(--passenger-2));}
+  .big-btn:active{transform:scale(.985);}
+  .section-title{font-size:15px; color:var(--sub); font-weight:600; margin:6px 2px -6px;}
+  .chip-row{display:flex; flex-wrap:wrap; gap:8px;}
+  .chip{
+    border:1px solid var(--line); background:var(--card); color:var(--text);
+    border-radius:999px; padding:10px 16px; font-size:15px; min-height:44px; font-weight:550;
+  }
+  .chip:active{background:#eef1f5;}
+  .foot-note{color:var(--faint); font-size:13px; text-align:center; line-height:1.6;}
+  .banner{
+    background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; border-radius:14px;
+    padding:12px 14px; font-size:14px; line-height:1.55;
+  }
+  .banner b{font-weight:700;}
+  .banner.wx{background:#eef4ff; border-color:#bfd6ff; color:#1d4ed8;}
+  .banner.wx .big{font-size:16px; font-weight:750;}
+  .wx-tip{
+    background:#eef4ff; border:1px solid #bfd6ff; color:#1d4ed8; border-radius:12px;
+    padding:10px 12px; font-size:14px; line-height:1.45; margin-bottom:10px; text-align:left;
+  }
+
+  /* ---------- 对话页 ---------- */
+  .log{flex:1; min-height:0; overflow-y:auto; padding:14px 14px 4px; display:flex; flex-direction:column; gap:12px;}
+  .empty-log{color:var(--faint); font-size:14px; text-align:center; margin:auto; padding:24px; line-height:1.8;}
+  .entry{background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px 16px;}
+  .entry .who{font-size:12px; color:var(--faint); font-weight:600; letter-spacing:.5px;}
+  .entry .src{color:var(--sub); font-size:15px; margin:2px 0 8px; word-break:break-word;}
+  .entry .dst{font-size:29px; line-height:1.35; font-weight:700; word-break:break-word;}
+  .entry .dst.en{font-family:"SF Pro Text",-apple-system,"Helvetica Neue",Arial,sans-serif; letter-spacing:.2px;}
+  .entry .edit{color:var(--faint); font-size:12px; margin-top:6px;}
+  .entry-actions{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;}
+  .mini-btn{
+    border:1px solid var(--line); background:#fbfcfd; border-radius:12px; padding:8px 14px;
+    font-size:15px; min-height:44px; color:var(--text); font-weight:600;
+  }
+  .mini-btn:active{background:#eef1f5;}
+  .warn-chip{
+    display:inline-block; margin-top:10px; background:#fff7ed; border:1px solid #fed7aa;
+    color:#9a3412; border-radius:10px; padding:6px 10px; font-size:13px;
+  }
+  .tag-row{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;}
+  .tag{background:#eef4ff; color:#1d4ed8; border-radius:8px; padding:4px 9px; font-size:12px; font-weight:600;}
+
+  .quick-row{flex:0 0 auto; display:flex; gap:8px; overflow-x:auto; padding:10px 14px; scrollbar-width:none;}
+  .quick-row::-webkit-scrollbar{display:none;}
+  .quick-chip{
+    flex:0 0 auto; border:1px solid var(--line); background:var(--card); border-radius:999px;
+    padding:10px 15px; font-size:15px; min-height:44px; white-space:nowrap; font-weight:550;
+  }
+  .quick-chip:active{background:#eef1f5;}
+
+  .mic-area{flex:0 0 auto; padding:6px 16px calc(16px + env(safe-area-inset-bottom)); text-align:center;}
+  .status{font-size:16px; color:var(--sub); min-height:24px; margin-bottom:10px; font-weight:600;}
+  .status.rec{color:var(--danger);}
+  .mic{
+    width:100%; max-width:340px; border:0; border-radius:26px; color:#fff; padding:20px 16px;
+    display:flex; flex-direction:column; align-items:center; gap:6px; box-shadow:var(--shadow); touch-action:none;
+    user-select:none; -webkit-user-select:none; background:linear-gradient(135deg,var(--driver),var(--driver-2));
+  }
+  .screen.passenger-mode .mic{background:linear-gradient(135deg,var(--passenger),var(--passenger-2));}
+  .mic .mic-icon{font-size:34px; line-height:1; pointer-events:none;}
+  .mic .mic-label{font-size:24px; font-weight:750; letter-spacing:1px; pointer-events:none;}
+  .mic .mic-sub{font-size:13px; opacity:.85; pointer-events:none;}
+  .mic.recording{background:linear-gradient(135deg,#ef4444,#b91c1c); animation:pulse 1.3s infinite;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.45);}50%{box-shadow:0 0 0 16px rgba(239,68,68,0);}}
+  .mic:disabled{background:#cbd2da; color:#7b8794; box-shadow:none;}
+  .mic-hint{font-size:14px; color:var(--faint); margin-top:10px;}
+  .sub-actions{display:flex; gap:10px; justify-content:center; margin-top:12px;}
+
+  /* ---------- 常用表达 ---------- */
+  .cat-row{display:flex; gap:8px; overflow-x:auto; padding:12px 14px 4px; flex:0 0 auto; scrollbar-width:none;}
+  .cat-row::-webkit-scrollbar{display:none;}
+  .cat-chip{
+    flex:0 0 auto; border:1px solid var(--line); background:var(--card); border-radius:999px;
+    padding:9px 15px; font-size:15px; min-height:44px; font-weight:600; white-space:nowrap;
+  }
+  .cat-chip.on{background:var(--driver); border-color:var(--driver); color:#fff;}
+  .phrase-item{
+    width:100%; text-align:left; border:1px solid var(--line); background:var(--card); border-radius:14px;
+    padding:13px 15px; margin-bottom:10px; display:flex; flex-direction:column; gap:3px;
+  }
+  .phrase-item:active{background:#eef1f5;}
+  .phrase-item .zh{font-size:18px; font-weight:650;}
+  .phrase-item .en{font-size:16px; color:var(--sub); font-family:"SF Pro Text",-apple-system,Arial,sans-serif;}
+  .phrase-item .need{font-size:12px; color:var(--warn); margin-top:2px;}
+  .cat-heading{font-size:15px; font-weight:700; color:var(--sub); margin:6px 2px 10px;}
+
+  /* ---------- 设置 ---------- */
+  .field{margin-bottom:18px;}
+  .field label{display:block; font-size:14px; color:var(--sub); font-weight:600; margin-bottom:6px;}
+  .field input,.field select,.field textarea{
+    width:100%; border:1px solid var(--line); border-radius:12px; padding:13px 14px; font-size:16px;
+    background:var(--card); color:var(--text); font-family:inherit; min-height:48px;
+  }
+  .field .tip{font-size:12px; color:var(--faint); margin-top:6px; line-height:1.6;}
+  .switch-row{
+    display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--line);
+    border-radius:12px; padding:12px 14px; font-size:15px; line-height:1.4; min-height:52px;
+  }
+  .switch-row input{width:22px; height:22px; min-height:0; flex:0 0 auto; margin:0;}
+  .primary-btn{
+    width:100%; border:0; border-radius:14px; background:var(--driver); color:#fff;
+    font-size:17px; font-weight:700; padding:15px; min-height:52px;
+  }
+  .primary-btn.ghost{background:#eef1f5; color:var(--text);}
+  .env li{font-size:14px; margin-bottom:4px;}
+  .env{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 12px 12px 28px; margin:0;}
+
+  /* ---------- 浮层 ---------- */
+  .layer{
+    position:fixed; inset:0; background:rgba(16,21,28,.55); display:none;
+    align-items:center; justify-content:center; padding:18px; z-index:50;
+  }
+  .layer.show{display:flex;}
+  .sheet-card{
+    background:var(--card); border-radius:20px; padding:16px; width:100%; max-width:520px;
+    max-height:88vh; overflow-y:auto;
+  }
+  .sheet-card h2{font-size:20px; margin:4px 0 10px; text-align:center;}
+  .confirm-src{
+    font-size:24px; font-weight:700; line-height:1.45; background:#f6f8fa; border-radius:14px;
+    padding:16px; margin:12px 0;
+  }
+  .confirm-actions{display:flex; flex-direction:column; gap:10px; margin-top:6px;}
+  .ok-btn{border:0; border-radius:16px; background:var(--driver); color:#fff; font-size:24px; font-weight:750; padding:18px; min-height:64px;}
+  .redo-btn{border:0; border-radius:16px; background:#eef1f5; color:var(--text); font-size:20px; font-weight:650; padding:16px; min-height:58px;}
+  .sheet-list{display:flex; flex-direction:column; gap:8px;}
+  .sheet-list button{
+    border:1px solid var(--line); background:var(--card); border-radius:14px; padding:15px;
+    font-size:17px; text-align:left; min-height:52px; font-weight:600;
+  }
+  .sheet-list button:active{background:#eef1f5;}
+  .sheet-list button.danger{color:var(--danger);}
+  #bigcard .big-text{
+    font-family:"SF Pro Text",-apple-system,"Helvetica Neue",Arial,sans-serif;
+    font-size:40px; line-height:1.3; font-weight:750; margin:14px 0;
+  }
+  #bigcard .big-sub{font-size:17px; color:var(--sub);}
+  .help-body{font-size:15px; line-height:1.75; color:var(--text);}
+  .help-body h3{font-size:16px; margin:16px 0 6px;}
+  .help-body ol,.help-body ul{padding-left:20px; margin:6px 0;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ================= 首页 ================= -->
+  <section class="screen active" id="screen-home">
+    <div class="scroll home">
+      <div class="brand">
+        <div class="logo">🚕</div>
+        <h1>司机英语助手</h1>
+        <p>和外国乘客快速沟通</p>
+      </div>
+      <button class="big-btn driver" id="btn-driver">
+        <span class="t1">🇨🇳 我说中文</span>
+        <span class="t2">对外国乘客说</span>
+      </button>
+      <button class="big-btn passenger" id="btn-passenger">
+        <span class="t1">🇬🇧 Passenger</span>
+        <span class="t2">Speak English · 把手机递给乘客</span>
+      </button>
+      <div id="home-banner"></div>
+      <div class="section-title">常用表达（不用说话，点一下就能播报）</div>
+      <div class="chip-row" id="home-cats"></div>
+      <div class="foot-note">按住按钮说话，松开立刻翻译并读出声音。<br>涉及金额、地址、时间、电话时，助手会先让您确认。</div>
+    </div>
+  </section>
+
+  <!-- ================= 对话页（司机/乘客共用） ================= -->
+  <section class="screen" id="screen-talk">
+    <div class="topbar">
+      <button class="icon-btn" id="talk-back">‹ 返回</button>
+      <h1 id="talk-title">我说中文</h1>
+      <button class="icon-btn" id="talk-more">⋯</button>
+    </div>
+    <div class="log" id="talk-log"></div>
+    <div class="quick-row" id="talk-quick"></div>
+    <div class="mic-area">
+      <div class="wx-tip" id="talk-wx-tip" style="display:none">
+        微信里不能录音：点右上角 <b>···</b> → <b>在浏览器打开</b>，就能按住说话。现在可以点下面的「常用表达」或「打字输入」。
+      </div>
+      <div class="status" id="talk-status">按住下面的按钮说话</div>
+      <button class="mic" id="btn-mic">
+        <span class="mic-icon" id="mic-icon">🎙️</span>
+        <span class="mic-label" id="mic-label">按住说话</span>
+        <span class="mic-sub" id="mic-sub">松开手指，完成录音</span>
+      </button>
+      <div class="mic-hint" id="mic-hint"></div>
+      <div class="sub-actions">
+        <button class="mini-btn" id="btn-keyboard">⌨️ 打字输入</button>
+        <button class="mini-btn" id="btn-stop">⏹ 停止播放</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 常用表达库 ================= -->
+  <section class="screen" id="screen-phrases">
+    <div class="topbar">
+      <button class="icon-btn" id="phrases-back">‹ 返回</button>
+      <h1 id="phrases-title">常用表达</h1>
+      <button class="icon-btn" id="phrases-settings">⚙️</button>
+    </div>
+    <div class="cat-row" id="phrase-cats"></div>
+    <div class="scroll" id="phrase-list"></div>
+  </section>
+
+  <!-- ================= 设置 ================= -->
+  <section class="screen" id="screen-settings">
+    <div class="topbar">
+      <button class="icon-btn" id="settings-back">‹ 返回</button>
+      <h1>设置</h1>
+      <span style="min-width:56px"></span>
+    </div>
+    <div class="scroll">
+      <div class="field">
+        <label>车牌尾号（用在「我的车是…」这类句子里）</label>
+        <input id="set-plate" inputmode="numeric" maxlength="6" placeholder="例如 8899">
+      </div>
+      <div class="field">
+        <label>车身颜色</label>
+        <input id="set-color" maxlength="8" placeholder="例如 白色">
+      </div>
+      <div class="field">
+        <label>翻译服务</label>
+        <label class="switch-row" for="set-use-builtin">
+          <input type="checkbox" id="set-use-builtin">
+          <span>使用内置翻译服务（由应用方提供，不花您的钱）</span>
+        </label>
+        <div class="tip" id="builtin-status"></div>
+      </div>
+      <div class="field">
+        <label>翻译引擎</label>
+        <select id="set-provider">
+          <option value="off">不用引擎（只用常用表达库 + 简单句式）</option>
+          <option value="deepseek">DeepSeek（推荐，便宜）</option>
+          <option value="dashscope">通义千问（阿里云）</option>
+          <option value="zhipu">智谱 GLM</option>
+          <option value="moonshot">Kimi / Moonshot</option>
+          <option value="openai">OpenAI</option>
+          <option value="custom">自定义（OpenAI 兼容接口）</option>
+        </select>
+        <div class="tip">下面这些是「您自己的 Key」，填了就用您的，费用也由您承担；不填则优先用上面的内置服务。都没有时，常用表达库和简单句式（多少钱、几分钟、几号出口）依然可用。</div>
+      </div>
+      <div class="field">
+        <label>接口地址</label>
+        <input id="set-baseurl" placeholder="https://api.deepseek.com/v1" autocapitalize="off" spellcheck="false">
+      </div>
+      <div class="field">
+        <label>模型名</label>
+        <input id="set-model" placeholder="deepseek-chat" autocapitalize="off" spellcheck="false">
+      </div>
+      <div class="field">
+        <label>API Key</label>
+        <input id="set-key" type="password" placeholder="sk-..." autocapitalize="off" spellcheck="false">
+        <div class="tip">Key 只存在这台手机的浏览器里，不会上传到别的地方。</div>
+      </div>
+      <div class="field">
+        <label>英文播报语速：<span id="rate-val">正常</span></label>
+        <input id="set-rate" type="range" min="0.6" max="1.2" step="0.05" style="padding:0">
+      </div>
+      <div class="field">
+        <button class="primary-btn" id="btn-save-settings">保存设置</button>
+      </div>
+      <div class="field">
+        <button class="primary-btn ghost" id="btn-test">测试翻译引擎</button>
+        <div class="tip" id="test-result"></div>
+      </div>
+      <div class="field">
+        <label>手机环境自检</label>
+        <ul class="env" id="env-check"></ul>
+      </div>
+      <div class="field">
+        <button class="primary-btn ghost" id="btn-clear-data">清空本机设置</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ================= 确认浮层 ================= -->
+<div class="layer" id="confirm-layer">
+  <div class="sheet-card">
+    <h2 id="confirm-title">我听到的是</h2>
+    <div class="confirm-src" id="confirm-text"></div>
+    <div class="tag-row" id="confirm-chips"></div>
+    <div class="confirm-actions">
+      <button class="ok-btn" id="confirm-yes">✓ 对，就这样翻译</button>
+      <button class="redo-btn" id="confirm-no">↻ 重说一遍</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 大字卡（给乘客看） ================= -->
+<div class="layer" id="bigcard">
+  <div class="sheet-card">
+    <div class="big-sub" id="bigcard-sub"></div>
+    <div class="big-text" id="bigcard-text"></div>
+    <div class="min" style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="mini-btn" id="bigcard-play">🔊 再读一遍</button>
+      <button class="mini-btn" id="bigcard-slow">🐢 慢速读</button>
+      <button class="mini-btn" id="bigcard-close" style="margin-left:auto">✕ 关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 打字输入 ================= -->
+<div class="layer" id="input-layer">
+  <div class="sheet-card">
+    <h2 id="input-title">打字输入</h2>
+    <div class="field">
+      <textarea id="input-area" rows="3" placeholder="在这里输入要翻译的内容"></textarea>
+    </div>
+    <div class="confirm-actions">
+      <button class="ok-btn" id="input-send">翻译</button>
+      <button class="redo-btn" id="input-cancel">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ⋯ 菜单 ================= -->
+<div class="layer" id="sheet">
+  <div class="sheet-card">
+    <h2>更多</h2>
+    <div class="sheet-list">
+      <button id="sheet-keyboard">⌨️ 打字输入</button>
+      <button id="sheet-phrases">📋 常用表达</button>
+      <button id="sheet-clear" class="danger">🧹 清空本次对话</button>
+      <button id="sheet-settings">⚙️ 设置</button>
+      <button id="sheet-help">❓ 使用说明</button>
+      <button id="sheet-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 使用说明 ================= -->
+<div class="layer" id="help-layer">
+  <div class="sheet-card">
+    <h2>使用说明</h2>
+    <div class="help-body">
+      <h3>司机怎么用</h3>
+      <ol>
+        <li>点「🇨🇳 我说中文」，按住大按钮说中文，说完松手。</li>
+        <li>助手听写后自动翻译，并直接读出英文给乘客听。</li>
+        <li>涉及到钱、地址、时间、电话、航班号时，助手会先让您确认「我听到的对不对」，确认后才翻译。</li>
+        <li>把手机屏幕转给乘客看，上面是放大的英文句子。</li>
+      </ol>
+      <h3>乘客怎么用</h3>
+      <ol>
+        <li>点「🇬🇧 Passenger」，把手机递给乘客。</li>
+        <li>乘客按住按钮说英文，松手后助手读中文给您听。</li>
+      </ol>
+      <h3>不用说话的用法</h3>
+      <p>点「常用表达」，选好场景，一句一句点，助手会直接播报对应的语言，最稳、最快。</p>
+      <h3>听不清 / 手机不认语音</h3>
+      <p>请用 Chrome、Edge 或 Safari（iOS 14.5 以上），并且必须通过 https 或 localhost 打开，网页才有权限用麦克风。实在不行，用「打字输入」或「常用表达」。</p>
+      <h3>在微信里点开链接</h3>
+      <p>微信内置的浏览器不允许网页使用麦克风，所以按住说话会没反应。请点右上角 <b>···</b>，选「在浏览器打开」，再按提示允许麦克风。建议在浏览器里选「添加到主屏幕」，以后从桌面图标点开就是全屏的，不用再经过微信。</p>
+    </div>
+    <div class="confirm-actions">
+      <button class="redo-btn" id="help-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="logic.js"></script>
+<script>
+/* =====================================================================
+ * 司机英语助手 —— 应用层
+ * 流程：按住说话 → ASR 识别 → 关键信息确认 → 翻译 → 双语显示 + 语音播报
+ * ===================================================================== */
+(function () {
+  'use strict';
+  var L = window.DriverLingo;
+  var $ = function (id) { return document.getElementById(id); };
+
+  var PRESETS = {
+    deepseek:  { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+    dashscope: { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
+    zhipu:     { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4-flash' },
+    moonshot:  { baseUrl: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k' },
+    openai:    { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' }
+  };
+
+  var STORE_KEY = 'driver-lingo-v1';
+  var USAGE_KEY = 'driver-lingo-usage';
+  var DEFAULTS = { provider: 'off', baseUrl: '', model: '', apiKey: '', rate: 0.95, plate: '', color: '', useBuiltin: true };
+  var BUILTIN = (window.APP_CONFIG && window.APP_CONFIG.builtinEngine) || {};
+  var settings = loadSettings();
+  var state = { mode: 'driver', log: [], phraseCat: 'meet', bigcard: null, pendingConfirm: null };
+
+  /* ---------------- 设置读写 ---------------- */
+  function loadSettings() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return Object.assign({}, DEFAULTS);
+      return Object.assign({}, DEFAULTS, JSON.parse(raw));
+    } catch (e) { return Object.assign({}, DEFAULTS); }
+  }
+  function saveSettings() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(settings)); } catch (e) {}
+  }
+
+  /* ---------------- 内置翻译服务的用量与开关 ---------------- */
+  function today() {
+    var d = new Date();
+    return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+  }
+  function usage() {
+    try {
+      var raw = JSON.parse(localStorage.getItem(USAGE_KEY) || '{}');
+      if (!raw || raw.date !== today()) return { date: today(), count: 0 };
+      return raw;
+    } catch (e) { return { date: today(), count: 0 }; }
+  }
+  function bumpUsage() {
+    var u = usage();
+    u.count = (u.count || 0) + 1;
+    try { localStorage.setItem(USAGE_KEY, JSON.stringify(u)); } catch (e) {}
+  }
+  function builtinLimit() {
+    return BUILTIN.dailyLimitPerDevice || 300;
+  }
+  function builtinLeft() {
+    return Math.max(0, builtinLimit() - (usage().count || 0));
+  }
+  function builtinReady() {
+    return !!(BUILTIN.enabled && BUILTIN.apiKey && settings.useBuiltin !== false && builtinLeft() > 0);
+  }
+  function ownEngine() {
+    if (settings.provider !== 'off' && settings.baseUrl && settings.model && settings.apiKey) {
+      return { baseUrl: settings.baseUrl, model: settings.model, apiKey: settings.apiKey, source: 'own' };
+    }
+    return null;
+  }
+  function builtinEngine() {
+    if (!builtinReady()) return null;
+    return { baseUrl: BUILTIN.baseUrl, model: BUILTIN.model, apiKey: BUILTIN.apiKey, source: 'builtin' };
+  }
+  /** 优先级：司机自己的 Key > 应用方内置 Key > 离线表达库 */
+  function activeEngine() {
+    return ownEngine() || builtinEngine();
+  }
+  function engineReady() {
+    return !!activeEngine();
+  }
+
+  /* ---------------- 语音播报 TTS ---------------- */
+  var voices = [];
+  function loadVoices() {
+    try { voices = window.speechSynthesis ? window.speechSynthesis.getVoices() || [] : []; } catch (e) { voices = []; }
+  }
+  if ('speechSynthesis' in window) {
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+    setTimeout(loadVoices, 500);
+  }
+  function pickVoice(lang) {
+    var want = lang.slice(0, 2).toLowerCase();
+    var cands = voices.filter(function (v) { return (v.lang || '').toLowerCase().indexOf(want) === 0; });
+    if (!cands.length) return null;
+    var prefer = /Ting-?ting|Tingting|Google|Siri|Samantha|Mei-?jia|Xiaoxiao|Yue/i;
+    return cands.filter(function (v) { return prefer.test(v.name || ''); })[0] || cands[0];
+  }
+  function speak(text, lang, rate) {
+    if (!text) return;
+    if (!('speechSynthesis' in window)) { toast('这台手机不支持语音播报，请看屏幕上的文字'); return; }
+    try {
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = lang;
+      u.rate = rate || (lang.indexOf('en') === 0 ? settings.rate : 1);
+      var v = pickVoice(lang);
+      if (v) u.voice = v;
+      setTimeout(function () { try { window.speechSynthesis.speak(u); } catch (e) {} }, 80);
+    } catch (e) { toast('语音播报失败，请看屏幕上的文字'); }
+  }
+  function stopSpeaking() {
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
+  }
+
+  /* ---------------- 页面切换 ---------------- */
+  function show(id) {
+    var screens = document.querySelectorAll('.screen');
+    for (var i = 0; i < screens.length; i++) screens[i].classList.remove('active');
+    $(id).classList.add('active');
+    if (id === 'screen-home') renderHome();   // 首页提示随设置变化刷新
+  }
+  function openLayer(id) { $(id).classList.add('show'); }
+  function closeLayer(id) { $(id).classList.remove('show'); }
+
+  var toastTimer = null;
+  function toast(msg) {
+    var el = $('toast-box');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'toast-box';
+      el.style.cssText = 'position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);' +
+        'background:rgba(16,21,28,.9);color:#fff;padding:12px 18px;border-radius:12px;font-size:15px;z-index:99;' +
+        'max-width:88vw;text-align:center;line-height:1.5;pointer-events:none;';
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.style.display = 'block';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.style.display = 'none'; }, 3200);
+  }
+
+  /* ---------------- 对话记录 ---------------- */
+  var logEl, statusEl;
+  function setStatus(txt, cls) {
+    statusEl.textContent = txt;
+    statusEl.className = 'status' + (cls ? ' ' + cls : '');
+  }
+  function addEntry(e) {
+    state.log.push(e);
+    renderEntry(e);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function renderEntry(e) {
+    var wrap = document.createElement('div');
+    wrap.className = 'entry';
+
+    var who = document.createElement('div');
+    who.className = 'who';
+    who.textContent = e.who;
+    wrap.appendChild(who);
+
+    var src = document.createElement('div');
+    src.className = 'src';
+    src.textContent = e.source;
+    wrap.appendChild(src);
+
+    var dst = document.createElement('div');
+    dst.className = 'dst' + (e.lang === 'en' ? ' en' : '');
+    dst.textContent = e.translation;
+    dst.style.cursor = 'pointer';
+    dst.title = '点一下放大给乘客看';
+    dst.addEventListener('click', function () { openBigCard(e.translation, e.subTitle || e.source, e.lang); });
+    wrap.appendChild(dst);
+
+    if (e.reasons && e.reasons.length) {
+      var tags = document.createElement('div');
+      tags.className = 'tag-row';
+      e.reasons.forEach(function (r) {
+        var t = document.createElement('span');
+        t.className = 'tag';
+        t.textContent = '已确认：' + r;
+        tags.appendChild(t);
+      });
+      wrap.appendChild(tags);
+    }
+
+    if (e.warn) {
+      var w = document.createElement('div');
+      w.className = 'warn-chip';
+      w.textContent = '⚠️ ' + e.warn;
+      wrap.appendChild(w);
+    }
+    if (e.note) {
+      var n = document.createElement('div');
+      n.className = 'edit';
+      n.textContent = e.note;
+      wrap.appendChild(n);
+    }
+
+    var actions = document.createElement('div');
+    actions.className = 'entry-actions';
+    var play = document.createElement('button');
+    play.className = 'mini-btn';
+    play.textContent = '🔊 播放';
+    play.addEventListener('click', function () { speak(e.translation, e.lang === 'en' ? 'en-US' : 'zh-CN'); });
+    actions.appendChild(play);
+    var slow = document.createElement('button');
+    slow.className = 'mini-btn';
+    slow.textContent = '🐢 慢速';
+    slow.addEventListener('click', function () {
+      speak(e.translation, e.lang === 'en' ? 'en-US' : 'zh-CN', 0.68);
+    });
+    actions.appendChild(slow);
+    var big = document.createElement('button');
+    big.className = 'mini-btn';
+    big.textContent = '🔍 放大给乘客看';
+    big.addEventListener('click', function () { openBigCard(e.translation, e.source, e.lang); });
+    actions.appendChild(big);
+    wrap.appendChild(actions);
+
+    logEl.appendChild(wrap);
+  }
+  function renderEmptyLog() {
+    logEl.innerHTML = '';
+    var d = document.createElement('div');
+    d.className = 'empty-log';
+    d.id = 'empty-log';
+    d.textContent = state.mode === 'driver'
+      ? '按住下面的按钮，说中文，松手就好。\n例如：“你好，我是您的司机。”'
+      : 'Hold the button below and speak English.\nFor example: “Please take me to this address.”';
+    logEl.appendChild(d);
+  }
+  function removeEmptyLog() {
+    var d = $('empty-log');
+    if (d && d.parentNode) d.parentNode.removeChild(d);
+  }
+
+  /* =====================================================================
+   * 语音识别（Web Speech API，按住说话）
+   * ===================================================================== */
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var sr = null, recording = false, recStart = 0, recTimer = null, recText = '', recConf = null, stopRequested = false;
+  var micBtn, micLabel, micSub, micIcon;
+
+  /** 微信内置浏览器不给网页麦克风权限，必须引导到系统浏览器 */
+  function isWeChat() {
+    return /micromessenger/i.test(navigator.userAgent || '');
+  }
+
+  function asrLang() { return state.mode === 'driver' ? 'zh-CN' : 'en-US'; }
+
+  function startRecording() {
+    if (recording) return;
+    if (isWeChat()) {
+      setStatus('微信里不能录音');
+      toast('点右上角 ··· → 在浏览器打开，就能按住说话翻译了');
+      return;
+    }
+    if (!SR) { toast('这台手机的浏览器不支持语音识别，请用「常用表达」或「打字输入」'); return; }
+    if (!window.isSecureContext) { toast('网页必须用 https 打开才能用麦克风。请用「常用表达」或「打字输入」'); return; }
+    stopSpeaking();
+    recText = ''; recConf = null; stopRequested = false;
+    sr = new SR();
+    sr.lang = asrLang();
+    sr.continuous = false;
+    sr.interimResults = true;
+    sr.maxAlternatives = 1;
+    sr.onresult = function (ev) {
+      var t = '';
+      for (var i = 0; i < ev.results.length; i++) {
+        var r = ev.results[i];
+        t += r[0].transcript || '';
+        if (r.isFinal && typeof r[0].confidence === 'number' && r[0].confidence > 0) recConf = r[0].confidence;
+      }
+      recText = t.trim();
+    };
+    sr.onerror = function (ev) {
+      var code = ev && ev.error;
+      if (code === 'aborted' && stopRequested) return;
+      recording = false;
+      clearInterval(recTimer);
+      setMicIdle();
+      if (code === 'not-allowed' || code === 'service-not-allowed') {
+        setStatus('没有麦克风权限');
+        toast('请允许网页使用麦克风：浏览器地址栏左侧的设置里打开「麦克风」');
+      } else if (code === 'no-speech') {
+        setStatus('没听到声音，请再按住说一次');
+      } else if (code === 'network') {
+        setStatus('网络不好，识别失败');
+        toast('语音识别需要联网，请检查信号；也可以点「常用表达」');
+      } else {
+        setStatus('识别出错，请再试一次');
+      }
+    };
+    sr.onend = function () { finishRecording(); };
+    try { sr.start(); } catch (e) { toast('麦克风启动失败，请重试'); return; }
+    recording = true;
+    recStart = Date.now();
+    micBtn.classList.add('recording');
+    micIcon.textContent = '🎙️';
+    micLabel.textContent = state.mode === 'driver' ? '正在听……' : 'Listening…';
+    setStatus(state.mode === 'driver' ? '正在听你说中文……松开手指结束' : 'Listening… release to send', 'rec');
+    recTimer = setInterval(function () {
+      var sec = Math.floor((Date.now() - recStart) / 1000);
+      micSub.textContent = '已录 ' + sec + ' 秒 · 松开完成';
+    }, 200);
+  }
+
+  function stopRecording() {
+    if (!recording || !sr) return;
+    stopRequested = true;
+    try { sr.stop(); } catch (e) {}
+  }
+
+  function setMicIdle() {
+    recording = false;
+    clearInterval(recTimer);
+    micBtn.classList.remove('recording');
+    micLabel.textContent = state.mode === 'driver' ? '按住说话' : 'Hold to speak';
+    micSub.textContent = state.mode === 'driver' ? '松开手指，完成录音' : 'Release to send';
+  }
+
+  function finishRecording() {
+    var held = Date.now() - recStart;
+    var text = recText;
+    var conf = recConf;
+    setMicIdle();
+    if (held < 500 && !text) { setStatus('按住多说一会儿再松手'); return; }
+    if (!text) { setStatus('没听清，请再按住说一次'); return; }
+    setStatus('正在识别……');
+    handleUtterance(text, conf);
+  }
+
+  /* =====================================================================
+   * 主流程：识别结果 → 判断是否要确认 → 翻译 → 播放
+   * ===================================================================== */
+  function handleUtterance(text, confidence) {
+    var crit = L.detectCritical(text);
+    var lowConf = typeof confidence === 'number' && confidence > 0 && confidence < 0.62;
+    if (crit.critical || lowConf) {
+      showConfirm(text, crit, lowConf);
+    } else {
+      translateFlow(text, crit);
+    }
+  }
+
+  function showConfirm(text, crit, lowConf) {
+    state.pendingConfirm = { text: text, crit: crit };
+    $('confirm-title').textContent = state.mode === 'driver' ? '我听到的是（请确认）' : 'Is this what you said?';
+    $('confirm-text').textContent = text;
+    var chips = $('confirm-chips');
+    chips.innerHTML = '';
+    (crit.reasons || []).forEach(function (r) {
+      var s = document.createElement('span');
+      s.className = 'tag';
+      s.textContent = '关键信息：' + r + '，请核对';
+      chips.appendChild(s);
+    });
+    if (lowConf) {
+      var s2 = document.createElement('span');
+      s2.className = 'tag';
+      s2.textContent = '听得不太清楚，请核对';
+      chips.appendChild(s2);
+    }
+    $('confirm-yes').textContent = state.mode === 'driver' ? '✓ 对，就这样翻译' : '✓ Yes, translate it';
+    $('confirm-no').textContent = state.mode === 'driver' ? '↻ 重说一遍' : '↻ Say again';
+    openLayer('confirm-layer');
+  }
+
+  function translateFlow(text, crit) {
+    var target = state.mode === 'driver' ? 'en' : 'zh';
+    var srcLang = target === 'en' ? 'zh' : 'en';
+    var who = state.mode === 'driver'
+      ? '司机说'
+      : 'Passenger said';
+    var subTitle = state.mode === 'driver' ? '给乘客看' : '给司机看';
+
+    setStatus(state.mode === 'driver' ? '正在翻译……' : 'Translating…');
+
+    var run = function (result, note, warn) {
+      removeEmptyLog();
+      addEntry({
+        who: who,
+        source: text,
+        translation: result,
+        lang: target,
+        reasons: crit && crit.reasons ? crit.reasons : [],
+        warn: warn || '',
+        note: note || '',
+        subTitle: subTitle
+      });
+      setStatus(state.mode === 'driver' ? '已翻译，正在播报' : 'Done — playing audio');
+      speak(result, target === 'en' ? 'en-US' : 'zh-CN');
+      var spoken = extractAndCompare(text, result);
+      if (spoken) setStatus(state.mode === 'driver' ? '⚠️ 数字可能不一致，请再核对一次' : '⚠️ Numbers may differ, please double-check');
+    };
+
+    var offline = function (why) {
+      var r = L.offlineTranslate(text, target);
+      if (!r) {
+        removeEmptyLog();
+        addEntry({
+          who: who,
+          source: text,
+          translation: state.mode === 'driver'
+            ? '这句我没听懂，请换一种简单说法，或点下面的「常用表达」。'
+            : 'Sorry, I could not translate that. Please try a simpler sentence.',
+          lang: state.mode === 'driver' ? 'zh' : 'en',
+          reasons: [], warn: '',
+          note: why || noEngineNote(),
+          subTitle: subTitle
+        });
+        setStatus('没能翻译，请换一种说法');
+        return;
+      }
+      run(r.translation, r.note, warnFor(text, r.translation));
+    };
+
+    if (engineReady()) {
+      engineTranslate(text, target).then(function (res) {
+        run(res.translation, res.note, warnFor(text, res.translation));
+      }).catch(function (err) {
+        offline('翻译引擎出错（' + (err && err.message ? err.message : '网络问题') + '），已改用离线匹配');
+      });
+    } else {
+      offline('');
+    }
+  }
+
+  /** 数字校验：译文与原文数字不一致时提示 */
+  function noEngineNote() {
+    if (engineReady()) return '';
+    if (BUILTIN.enabled && BUILTIN.apiKey && settings.useBuiltin === false) {
+      return '您关闭了内置翻译服务，目前只支持常用表达库和简单句式（可在设置里重新打开）';
+    }
+    if (BUILTIN.enabled && BUILTIN.apiKey && builtinLeft() <= 0) {
+      return '今天的翻译次数已经用完，明天自动恢复；现在可以用常用表达库继续沟通';
+    }
+    if (BUILTIN.enabled && !BUILTIN.apiKey) {
+      return '内置翻译服务还没配置 Key（需要应用方在 config.js 里填写），现在只能翻译常用表达和简单句式';
+    }
+    return '未配置翻译引擎：目前只支持常用表达库和简单句式（可在设置里填写自己的 Key）';
+  }
+
+  function warnFor(source, translation) {
+    var chk = L.checkNumbersPreserved(source, translation);
+    if (chk.ok || chk.source.length === 0) return '';
+    return '数字可能不一致（原文含有 ' + chk.source.join('、') + '），请再核对一次';
+  }
+  function extractAndCompare(source, translation) {
+    var chk = L.checkNumbersPreserved(source, translation);
+    return !chk.ok && chk.source.length > 0;
+  }
+
+  /* ---------------- 翻译引擎调用 ---------------- */
+  function engineTranslate(text, target) {
+    var engine = activeEngine();
+    if (!engine) return Promise.reject(new Error('没有可用的翻译引擎'));
+    var base = String(engine.baseUrl || '').replace(/\/+$/, '');
+    var url = base + '/chat/completions';
+    var ctl = new AbortController();
+    var timer = setTimeout(function () { ctl.abort(); }, 15000);
+    return fetch(url, {
+      method: 'POST',
+      signal: ctl.signal,
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + engine.apiKey },
+      body: JSON.stringify({
+        model: engine.model,
+        messages: L.buildMessages({ text: text, from: target === 'en' ? 'zh' : 'en', to: target }),
+        temperature: 0.2,
+        max_tokens: 300
+      })
+    }).then(function (res) {
+      if (!res.ok) {
+        return res.text().catch(function () { return ''; }).then(function (t) {
+          throw new Error('接口返回 ' + res.status + ' ' + String(t).slice(0, 100));
+        });
+      }
+      return res.json();
+    }).then(function (data) {
+      var raw = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+      var parsed = L.parseEngineReply(raw);
+      if (!parsed || !parsed.translation) throw new Error('接口没有返回译文');
+      if (engine.source === 'builtin') bumpUsage();
+      return parsed;
+    }).finally(function () { clearTimeout(timer); });
+  }
+
+  /* =====================================================================
+   * 常用表达
+   * ===================================================================== */
+  function phraseCategories() {
+    var cats = [{ id: 'passenger', name: '乘客说给司机 👤', icon: '👤', target: 'zh' }];
+    L.DRIVER_CATEGORIES.forEach(function (c) {
+      cats.push({ id: c.id, name: c.icon + ' ' + c.name, icon: c.icon, target: 'en', items: c.items });
+    });
+    return cats;
+  }
+  function phraseItems(catId) {
+    if (catId === 'passenger') {
+      return L.PASSENGER_PHRASES.map(function (it) { return { primary: it.en, secondary: it.zh, zh: it.zh, en: it.en }; });
+    }
+    var cat = L.DRIVER_CATEGORIES.filter(function (c) { return c.id === catId; })[0];
+    if (!cat) return [];
+    return cat.items.map(function (it) { return { primary: it.zh, secondary: it.en, zh: it.zh, en: it.en, needsProfile: it.needsProfile, critical: it.critical }; });
+  }
+  function renderPhraseScreen() {
+    var cats = phraseCategories();
+    var row = $('phrase-cats');
+    row.innerHTML = '';
+    cats.forEach(function (c) {
+      var b = document.createElement('button');
+      b.className = 'cat-chip' + (state.phraseCat === c.id ? ' on' : '');
+      b.textContent = c.name;
+      b.addEventListener('click', function () {
+        state.phraseCat = c.id;
+        renderPhraseScreen();
+        $('phrase-list').scrollTop = 0;
+      });
+      row.appendChild(b);
+    });
+    var target = state.phraseCat === 'passenger' ? 'zh' : 'en';
+    var list = $('phrase-list');
+    list.innerHTML = '';
+    phraseItems(state.phraseCat).forEach(function (it) {
+      var btn = document.createElement('button');
+      btn.className = 'phrase-item';
+      var zh = document.createElement('span');
+      zh.className = 'zh';
+      zh.textContent = state.phraseCat === 'passenger' ? it.en : it.zh;
+      var en = document.createElement('span');
+      en.className = 'en';
+      en.textContent = state.phraseCat === 'passenger' ? it.zh : it.en;
+      btn.appendChild(zh);
+      btn.appendChild(en);
+      if (it.needsProfile && !(settings.plate && settings.color)) {
+        var need = document.createElement('span');
+        need.className = 'need';
+        need.textContent = '提示：请在设置里填上您的车牌尾号和车身颜色';
+        btn.appendChild(need);
+      }
+      btn.addEventListener('click', function () {
+        var text = target === 'en'
+          ? L.fillProfile(it.en, { plate: settings.plate, color: settings.color })
+          : it.zh;
+        openBigCard(text, target === 'en' ? it.zh : it.en, target);
+        speak(text, target === 'en' ? 'en-US' : 'zh-CN');
+        removeEmptyLog();
+        addEntry({
+          who: '常用表达',
+          source: target === 'en' ? it.zh : it.en,
+          translation: text,
+          lang: target,
+          reasons: it.critical ? ['关键信息'] : [],
+          subTitle: target === 'en' ? '给乘客看' : '给司机看'
+        });
+      });
+      list.appendChild(btn);
+    });
+    $('phrases-title').textContent = state.phraseCat === 'passenger' ? 'Passenger · 乘客常用' : '常用表达';
+  }
+
+  /* ---------------- 大字卡 ---------------- */
+  function openBigCard(text, sub, lang) {
+    state.bigcard = { text: text, lang: lang };
+    $('bigcard-text').textContent = text;
+    $('bigcard-sub').textContent = (lang === 'en' ? 'Please read this / 请看这句话' : '请读给司机听') + (sub ? ' · ' + sub : '');
+    openLayer('bigcard');
+  }
+
+  /* =====================================================================
+   * 模式与界面文案
+   * ===================================================================== */
+  function setMode(mode) {
+    state.mode = mode;
+    var talk = $('screen-talk');
+    talk.classList.toggle('passenger-mode', mode === 'passenger');
+    $('talk-title').textContent = mode === 'driver' ? '我说中文' : 'Passenger · Speak English';
+    if (!recording) setMicIdle();
+    setStatus(mode === 'driver' ? '按住下面的按钮说话' : 'Hold the button and speak English');
+    $('mic-hint').textContent = mode === 'driver'
+      ? '说中文，松手后自动翻译成英文并读出声音'
+      : 'Speak English; release and the app will speak Chinese to the driver';
+    $('btn-keyboard').textContent = mode === 'driver' ? '⌨️ 打字输入' : '⌨️ Type it';
+    $('btn-stop').textContent = mode === 'driver' ? '⏹ 停止播放' : '⏹ Stop audio';
+    $('talk-wx-tip').style.display = isWeChat() ? 'block' : 'none';
+    renderQuickChips();
+    renderEmptyLog();
+  }
+
+  function renderQuickChips() {
+    var row = $('talk-quick');
+    row.innerHTML = '';
+    var list = state.mode === 'driver' ? L.QUICK_DRIVER : L.QUICK_PASSENGER;
+    list.forEach(function (text) {
+      var b = document.createElement('button');
+      b.className = 'quick-chip';
+      b.textContent = text;
+      b.addEventListener('click', function () {
+        var target = state.mode === 'driver' ? 'en' : 'zh';
+        var hit = state.mode === 'driver' ? L.matchPhrase(text, 'zh', { min: 0.35 }) : L.matchPhrase(text, 'en', { min: 0.35 });
+        var out = hit ? (target === 'en' ? hit.item.en : hit.item.zh) : null;
+        if (!out) {
+          var off = L.offlineTranslate(text, target);
+          out = off ? off.translation : text;
+        }
+        var shown = target === 'en' ? L.fillProfile(out, { plate: settings.plate, color: settings.color }) : out;
+        removeEmptyLog();
+        addEntry({
+          who: '一键表达',
+          source: text,
+          translation: shown,
+          lang: target,
+          reasons: [],
+          subTitle: target === 'en' ? '给乘客看' : '给司机看'
+        });
+        speak(shown, target === 'en' ? 'en-US' : 'zh-CN');
+        openBigCard(shown, text, target);
+      });
+      row.appendChild(b);
+    });
+  }
+
+  /* =====================================================================
+   * 事件绑定
+   * ===================================================================== */
+  function bind() {
+    micBtn = $('btn-mic'); micLabel = $('mic-label'); micSub = $('mic-sub'); micIcon = $('mic-icon');
+    logEl = $('talk-log'); statusEl = $('talk-status');
+
+    $('btn-driver').addEventListener('click', function () { setMode('driver'); show('screen-talk'); });
+    $('btn-passenger').addEventListener('click', function () { setMode('passenger'); show('screen-talk'); });
+    $('talk-back').addEventListener('click', function () { stopSpeaking(); show('screen-home'); });
+    $('talk-more').addEventListener('click', function () { openLayer('sheet'); });
+    $('sheet-close').addEventListener('click', function () { closeLayer('sheet'); });
+    $('sheet-keyboard').addEventListener('click', function () { closeLayer('sheet'); openInput(); });
+    $('sheet-phrases').addEventListener('click', function () { closeLayer('sheet'); show('screen-phrases'); renderPhraseScreen(); });
+    $('sheet-clear').addEventListener('click', function () {
+      closeLayer('sheet');
+      state.log = [];
+      logEl.innerHTML = '';
+      renderEmptyLog();
+      toast('已清空本次对话记录');
+    });
+    $('sheet-settings').addEventListener('click', function () { closeLayer('sheet'); openSettings(); });
+    $('sheet-help').addEventListener('click', function () { closeLayer('sheet'); openLayer('help-layer'); });
+    $('help-close').addEventListener('click', function () { closeLayer('help-layer'); });
+
+    /* 按住说话 */
+    micBtn.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      if (e.isPrimary === false) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      try { micBtn.setPointerCapture(e.pointerId); } catch (err) {}
+      startRecording();
+    });
+    /* 指针被捕获后，pointerup 一定会回到按钮上；不用监听 pointerleave，
+       否则手指稍微移出按钮就会提前结束录音 */
+    ['pointerup', 'pointercancel'].forEach(function (evt) {
+      micBtn.addEventListener(evt, function () { stopRecording(); });
+    });
+    micBtn.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+    $('btn-keyboard').addEventListener('click', openInput);
+    $('btn-stop').addEventListener('click', function () { stopSpeaking(); setStatus('已停止播放'); });
+
+    /* 确认浮层 */
+    $('confirm-yes').addEventListener('click', function () {
+      closeLayer('confirm-layer');
+      var p = state.pendingConfirm;
+      state.pendingConfirm = null;
+      if (p) translateFlow(p.text, p.crit);
+    });
+    $('confirm-no').addEventListener('click', function () {
+      closeLayer('confirm-layer');
+      state.pendingConfirm = null;
+      setStatus(state.mode === 'driver' ? '请再按住说一遍' : 'Please hold and say it again');
+    });
+
+    /* 大字卡 */
+    $('bigcard-close').addEventListener('click', function () { closeLayer('bigcard'); });
+    $('bigcard-play').addEventListener('click', function () {
+      if (state.bigcard) speak(state.bigcard.text, state.bigcard.lang === 'en' ? 'en-US' : 'zh-CN');
+    });
+    $('bigcard-slow').addEventListener('click', function () {
+      if (state.bigcard) speak(state.bigcard.text, state.bigcard.lang === 'en' ? 'en-US' : 'zh-CN', 0.68);
+    });
+
+    /* 打字输入 */
+    $('input-cancel').addEventListener('click', function () { closeLayer('input-layer'); });
+    $('input-send').addEventListener('click', function () {
+      var t = $('input-area').value.trim();
+      closeLayer('input-layer');
+      if (!t) return;
+      $('input-area').value = '';
+      handleUtterance(t, null);
+    });
+
+    /* 常用表达 / 设置入口 */
+    $('phrases-back').addEventListener('click', function () { show('screen-home'); });
+    $('phrases-settings').addEventListener('click', openSettings);
+    $('settings-back').addEventListener('click', function () { show('screen-home'); });
+
+    /* 设置保存 */
+    $('set-provider').addEventListener('change', function () {
+      var p = PRESETS[this.value];
+      if (p) { $('set-baseurl').value = p.baseUrl; $('set-model').value = p.model; }
+    });
+    $('set-rate').addEventListener('input', function () { $('rate-val').textContent = rateLabel(parseFloat(this.value)); });
+    $('set-use-builtin').addEventListener('change', function () {
+      settings.useBuiltin = this.checked;
+      saveSettings();
+      renderBuiltinStatus();
+    });
+    $('btn-save-settings').addEventListener('click', function () {
+      settings.provider = $('set-provider').value;
+      settings.baseUrl = $('set-baseurl').value.trim();
+      settings.model = $('set-model').value.trim();
+      settings.apiKey = $('set-key').value.trim();
+      settings.rate = parseFloat($('set-rate').value) || 0.95;
+      settings.plate = $('set-plate').value.trim();
+      settings.color = $('set-color').value.trim();
+      settings.useBuiltin = $('set-use-builtin').checked;
+      saveSettings();
+      renderBuiltinStatus();
+      toast('已保存');
+      $('btn-save-settings').textContent = '已保存 ✅';
+      setTimeout(function () { $('btn-save-settings').textContent = '保存设置'; }, 1500);
+    });
+    $('btn-test').addEventListener('click', function () {
+      settings.provider = $('set-provider').value;
+      settings.baseUrl = $('set-baseurl').value.trim();
+      settings.model = $('set-model').value.trim();
+      settings.apiKey = $('set-key').value.trim();
+      var out = $('test-result');
+      if (!engineReady()) { out.textContent = '还没有配置翻译引擎（或没填 Key）。不配置也能用常用表达库。'; return; }
+      out.textContent = '测试中……';
+      engineTranslate('车费是58块6，请在3号出口等我。', 'en').then(function (r) {
+        out.textContent = '✅ 引擎可用：' + r.translation;
+      }).catch(function (e) {
+        out.textContent = '❌ 失败：' + (e && e.message ? e.message : e) + '（检查接口地址、Key、网络，以及是否被跨域限制）';
+      });
+    });
+    $('btn-clear-data').addEventListener('click', function () {
+      settings = Object.assign({}, DEFAULTS);
+      saveSettings();
+      openSettings();
+      toast('已清空');
+    });
+  }
+
+  function rateLabel(v) {
+    if (v <= 0.75) return '很慢';
+    if (v <= 0.9) return '偏慢';
+    if (v < 1.02) return '正常';
+    return '偏快';
+  }
+
+  function openInput() {
+    $('input-title').textContent = state.mode === 'driver' ? '打字输入中文' : 'Type in English';
+    $('input-area').placeholder = state.mode === 'driver' ? '输入要说给乘客的中文' : 'Type English for the driver';
+    openLayer('input-layer');
+    setTimeout(function () { $('input-area').focus(); }, 100);
+  }
+
+  function openSettings() {
+    $('set-provider').value = settings.provider;
+    $('set-baseurl').value = settings.baseUrl;
+    $('set-model').value = settings.model;
+    $('set-key').value = settings.apiKey;
+    $('set-plate').value = settings.plate;
+    $('set-color').value = settings.color;
+    $('set-rate').value = settings.rate;
+    $('set-use-builtin').checked = settings.useBuiltin !== false;
+    $('rate-val').textContent = rateLabel(settings.rate);
+    renderBuiltinStatus();
+    renderEnvCheck();
+    show('screen-settings');
+  }
+
+  function renderBuiltinStatus() {
+    var el = $('builtin-status');
+    var left = builtinLeft();
+    if (!BUILTIN.enabled) {
+      el.textContent = '应用方没有开放内置服务。您可以填自己的 Key，或者只用常用表达库。';
+      return;
+    }
+    if (!BUILTIN.apiKey) {
+      el.textContent = '内置服务已打开，但应用方还没有填 Key：把 Key 填进 config.js 就能对所有人生效（当前只能用自己的 Key 或常用表达库）。';
+      return;
+    }
+    el.textContent = '内置服务可用：' + BUILTIN.model + '，由应用方承担费用。'
+      + '今天还剩 ' + left + '/' + builtinLimit() + ' 次；用完后自动改走常用表达库。'
+      + (settings.useBuiltin === false ? '（当前已关闭，勾选上面的开关即可使用）' : '');
+  }
+
+  function engineStatusText(eng) {
+    if (eng) {
+      return '✅ 可用：' + eng.model + '（' + (eng.source === 'own' ? '您自己的 Key' : '内置服务') + '）';
+    }
+    if (BUILTIN.enabled && BUILTIN.apiKey) {
+      if (settings.useBuiltin === false) return '⚠️ 已关闭内置翻译服务（可用自己的 Key 或常用表达库）';
+      return '⚠️ 内置服务今天的额度已用完，已自动改用常用表达库，明天恢复';
+    }
+    if (BUILTIN.enabled) return '⚠️ 应用方还没有配置内置 Key（可用自己的 Key 或常用表达库）';
+    return '⚠️ 未配置（只用常用表达库与简单句式）';
+  }
+
+  function renderEnvCheck() {
+    var ul = $('env-check');
+    ul.innerHTML = '';
+    var items = [];
+    items.push(['麦克风权限环境（https）', window.isSecureContext ? '✅ 已满足' : '❌ 需要用 https 打开网页']);
+    items.push(['语音识别（听你说话）', SR ? '✅ 支持' : '❌ 不支持，请换 Chrome / Edge / Safari']);
+    items.push(['语音播报（读出来）', ('speechSynthesis' in window) ? '✅ 支持（可用发音 ' + voices.length + ' 个）' : '❌ 不支持']);
+    var eng = activeEngine();
+    items.push(['翻译引擎', engineStatusText(eng)]);
+    items.push(['今天已用内置翻译', usage().count + '/' + builtinLimit() + ' 次']);
+    items.forEach(function (kv) {
+      var li = document.createElement('li');
+      li.textContent = kv[0] + '：' + kv[1];
+      ul.appendChild(li);
+    });
+  }
+
+  function renderHome() {
+    var row = $('home-cats');
+    row.innerHTML = '';
+    phraseCategories().forEach(function (c) {
+      var b = document.createElement('button');
+      b.className = 'chip';
+      b.textContent = c.name;
+      b.addEventListener('click', function () {
+        state.phraseCat = c.id;
+        show('screen-phrases');
+        renderPhraseScreen();
+      });
+      row.appendChild(b);
+    });
+
+    var banner = $('home-banner');
+    banner.innerHTML = '';
+    var msgs = [];
+    if (isWeChat()) {
+      msgs.push({
+        cls: 'banner wx',
+        html: '<div class="big">微信里不能录音</div>'
+          + '请点右上角 <b>···</b> → <b>在浏览器打开</b>，这样按住说话才能用。'
+          + '在浏览器里打开一次后，建议选“添加到主屏幕”，以后一点就进来。<br>'
+          + '现在也可以先用下面的<b>常用表达</b>（点一下就能播报）。'
+      });
+    }
+    if (!window.isSecureContext) {
+      msgs.push({ cls: 'banner', html: '<b>麦克风不可用</b>：当前页面不是通过 https 打开的。请把它部署到网上（或用 localhost）后，用手机浏览器打开；在此之前可以使用「常用表达」和「打字输入」。' });
+    }
+    if (!SR) {
+      msgs.push({ cls: 'banner', html: '<b>这台手机的浏览器不支持语音识别</b>：建议用 Chrome、Edge 或 Safari 最新版，也可以用「常用表达」和「打字输入」。' });
+    }
+    if (!engineReady()) {
+      if (BUILTIN.enabled && BUILTIN.apiKey) {
+        msgs.push({ cls: 'banner', html: '当前只用<b>常用表达库 + 简单句式</b>翻译。想支持「随便说都能翻」，到<a href="#" id="home-settings">设置</a>里打开内置翻译服务，或填自己的 Key。' });
+      } else if (BUILTIN.enabled) {
+        msgs.push({ cls: 'banner', html: '当前只用<b>常用表达库 + 简单句式</b>翻译。填一个翻译引擎的 Key 就能支持「随便说都能翻」：司机可以在<a href="#" id="home-settings">设置</a>里填自己的 Key。' });
+      } else {
+        msgs.push({ cls: 'banner', html: '当前只用<b>常用表达库 + 简单句式</b>翻译。想支持「随便说都能翻」，请到<a href="#" id="home-settings">设置</a>里填一个翻译引擎的 Key。' });
+      }
+    }
+    msgs.forEach(function (m) {
+      var d = document.createElement('div');
+      d.className = m.cls;
+      d.style.marginBottom = '10px';
+      d.innerHTML = m.html;
+      banner.appendChild(d);
+    });
+    var link = $('home-settings');
+    if (link) link.addEventListener('click', function (e) { e.preventDefault(); openSettings(); });
+  }
+
+  /* ---------------- 启动 ---------------- */
+  var inited = false;
+  function init() {
+    if (inited) return;
+    inited = true;
+    bind();
+    setMode('driver');
+    renderHome();
+    show('screen-home');
+    if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    }
+  }
+  document.addEventListener('DOMContentLoaded', init);
+  if (document.readyState !== 'loading') init();
+})();
+</script>
+</body>
+</html>
