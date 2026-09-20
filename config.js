@@ -20,7 +20,10 @@ window.APP_CONFIG = {
 
     // 服务商接口（OpenAI 兼容格式）
     baseUrl: "https://api.deepseek.com/v1",
-    model: "deepseek-chat",
+
+    // deepseek-flash：快（约 1 秒）又便宜，翻译口语自然，日常用它就够
+    // deepseek-v4-pro：更细致一点，但慢一倍，适合不着急的场景
+    model: "deepseek-flash",
 
     // 应用方的 API Key（DeepSeek）。如果这个链接被公开传播、费用异常，
     // 请立刻到 DeepSeek 后台吊销并换一个，只改这一行即可。

@@ -666,17 +666,23 @@
       wrap.appendChild(tags);
     }
 
-    if (e.warn) {
-      var w = document.createElement('div');
-      w.className = 'warn-chip';
-      w.textContent = '⚠️ ' + e.warn;
-      wrap.appendChild(w);
-    }
+    var warnEl = document.createElement('div');
+    warnEl.className = 'warn-chip';
+    warnEl.style.display = e.warn ? 'inline-block' : 'none';
+    warnEl.textContent = e.warn ? '⚠️ ' + e.warn : '';
+    wrap.appendChild(warnEl);
     if (e.note) {
       var n = document.createElement('div');
       n.className = 'edit';
-      n.textContent = e.note;
+      n.textContent = (e.noteIcon ? '💡 ' : '') + e.note;
       wrap.appendChild(n);
+    }
+
+    /** 换说法之后要重新做一次数字校验 */
+    function refreshWarn(showing) {
+      var w = warnFor(e.source, showing);
+      warnEl.style.display = w ? 'inline-block' : 'none';
+      warnEl.textContent = w ? '⚠️ ' + w : '';
     }
 
     var actions = document.createElement('div');
@@ -699,6 +705,21 @@
     big.textContent = '🔍 放大给乘客看';
     big.addEventListener('click', function () { openBigCard(e.translation, e.source, e.lang); });
     actions.appendChild(big);
+    if (e.alt) {
+      var swap = document.createElement('button');
+      swap.className = 'mini-btn';
+      swap.textContent = '🔁 换个说法';
+      swap.addEventListener('click', function () {
+        var showAlt = swap.getAttribute('data-alt') === '1';
+        var next = showAlt ? e.translation : e.alt;
+        dst.textContent = next;
+        swap.setAttribute('data-alt', showAlt ? '0' : '1');
+        swap.textContent = showAlt ? '🔁 换个说法' : '🔁 换回原来那句';
+        refreshWarn(next);
+        speak(next, e.lang === 'en' ? 'en-US' : 'zh-CN');
+      });
+      actions.appendChild(swap);
+    }
     wrap.appendChild(actions);
 
     logEl.appendChild(wrap);
@@ -882,22 +903,24 @@
       addEntry({
         who: who,
         source: text,
-        translation: result,
+        translation: result.translation,
+        alt: result.alt || '',
         lang: target,
         reasons: crit && crit.reasons ? crit.reasons : [],
         warn: warn || '',
-        note: note || '',
+        note: note || result.note || '',
+        noteIcon: !!(result.note && !note),
         subTitle: subTitle
       });
       setStatus(state.mode === 'driver' ? '已翻译，正在播报' : 'Done — playing audio');
-      speak(result, target === 'en' ? 'en-US' : 'zh-CN');
+      speak(result.translation, target === 'en' ? 'en-US' : 'zh-CN');
       var voiceLang = target === 'en' ? 'en-US' : 'zh-CN';
       if (isWeChat() && !ttsReady(voiceLang)) {
         // 微信里常常发不出声音，直接把大字给乘客看
-        openBigCard(result, text, target);
+        openBigCard(result.translation, text, target);
         setStatus('这台手机可能发不出声音，请把屏幕给乘客看');
       }
-      var spoken = extractAndCompare(text, result);
+      var spoken = extractAndCompare(text, result.translation);
       if (spoken) setStatus(state.mode === 'driver' ? '⚠️ 数字可能不一致，请再核对一次' : '⚠️ Numbers may differ, please double-check');
     };
 
@@ -919,12 +942,12 @@
         setStatus('没能翻译，请换一种说法');
         return;
       }
-      run(r.translation, r.note, warnFor(text, r.translation));
+      run({ translation: r.translation, alt: '', note: '' }, r.note, warnFor(text, r.translation));
     };
 
     if (engineReady()) {
       engineTranslate(text, target).then(function (res) {
-        run(res.translation, res.note, warnFor(text, res.translation));
+        run(res, '', warnFor(text, res.translation));
       }).catch(function (err) {
         offline('翻译引擎出错（' + (err && err.message ? err.message : '网络问题') + '），已改用离线匹配');
       });
@@ -966,16 +989,24 @@
     var url = base + '/chat/completions';
     var ctl = new AbortController();
     var timer = setTimeout(function () { ctl.abort(); }, 15000);
+    var payload = {
+      model: engine.model,
+      messages: L.buildMessages({
+        text: text,
+        from: target === 'en' ? 'zh' : 'en',
+        to: target,
+        context: recentContext()
+      }),
+      temperature: 0.3,
+      max_tokens: 600
+    };
+    // DeepSeek 的模型默认会先「深度思考」，一次翻译要十几秒，对话场景不能用，这里关掉
+    if (base.indexOf('deepseek') >= 0) payload.thinking = { type: 'disabled' };
     return fetch(url, {
       method: 'POST',
       signal: ctl.signal,
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + engine.apiKey },
-      body: JSON.stringify({
-        model: engine.model,
-        messages: L.buildMessages({ text: text, from: target === 'en' ? 'zh' : 'en', to: target }),
-        temperature: 0.2,
-        max_tokens: 300
-      })
+      body: JSON.stringify(payload)
     }).then(function (res) {
       if (!res.ok) {
         return res.text().catch(function () { return ''; }).then(function (t) {
@@ -990,6 +1021,15 @@
       if (engine.source === 'builtin') bumpUsage();
       return parsed;
     }).finally(function () { clearTimeout(timer); });
+  }
+
+  /** 最近三轮对话，用来让翻译理解指代（例如「就停这儿」指代上一句的地址） */
+  function recentContext() {
+    var recent = state.log.slice(-3);
+    if (!recent.length) return '';
+    return recent.map(function (e) {
+      return '司机/乘客说：' + e.source + ' → 已翻：' + e.translation;
+    }).join('\n');
   }
 
   /* =====================================================================

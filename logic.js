@@ -366,36 +366,64 @@
    * 5. 翻译引擎（OpenAI 兼容接口）提示词与解析
    * ------------------------------------------------------------- */
   const GLOSSARY_HINT = [
-    '平台=the app', '网约车=ride-hailing', '高速费=toll', '等待费=waiting fee',
-    '发票=invoice', '五星好评=five-star rating', '尾号=the last digits', '后备箱=trunk'
+    '平台=the app', '高速费=toll', '等待费=waiting fee', '发票=invoice',
+    '五星好评=five-star rating', '后备箱=the trunk', '尾号=the last digits'
   ].join('；');
 
+  /* 提示词要点：
+   * - 先当「车上现场口译」，不是翻译软件：目标是让对方马上听懂并照做
+   * - 明确禁止逐字直译中文客气话，并给出风格对照
+   * - 数字/金额/地址逐字保留
+   * - 顺便产出一句更口语的备选说法和一句给司机的提醒
+   */
   function buildMessages(opts) {
-    const from = opts.from === 'en' ? 'English' : 'Chinese';
-    const to = opts.to === 'en' ? 'English' : 'Chinese';
-    const direction = opts.to === 'en'
-      ? '中文 → 英文（司机说给外国乘客听）'
-      : '英文 → 中文（外国乘客说给中国司机听）';
+    const toEn = opts.to === 'en';
     const system = [
-      '你是中国网约车场景的双向口译助手，帮助你服务的是「中国司机 ↔ 外国乘客」的车内即时沟通。',
-      '翻译方向：' + direction + '。',
-      '硬性要求：',
-      '1. 只翻译，不解释、不补充、不追问。译文要口语、简短、礼貌，可直接朗读。',
-      '2. 数字、金额、时间、航班号、电话号码、地址必须逐字保留，不得改写、约算或省略。',
-      '3. 中文数字改写成阿拉伯数字（例如「五十八块六」写成 58.6），但数值必须完全一致。',
-      '4. 英文译文控制在 20 个单词以内；中文译文控制在 25 个字以内。',
-      '5. 原句有歧义时，选择最符合打车场景的理解。',
-      '6. 城市名、地名、酒店名保留中文拼音或英文常用写法。',
-      '术语参考：' + GLOSSARY_HINT + '。',
-      '输出格式：必须是 JSON，形如 {"translation":"译文","note":"给司机的中文提醒，没有就空字符串"}。'
+      '你是坐在副驾上帮网约车司机沟通的老翻译，服务对象是不会英语的中国司机和英语乘客。',
+      '你的目标不是逐字对应，而是让对方立刻听懂、马上照做。',
+      '',
+      '规则：',
+      '1. 数字、金额、时间、地址、航班号、电话必须逐字保留，不得改写或约算（五十八块六 → 58.6）。',
+      '2. 只翻这一句，不加解释、不补充信息、不反问。',
+      '3. 中文里的客气话不要逐字直译，换成目标语言里同样客气、但当地人真的会说的说法。',
+      toEn
+        ? '4. 英文用日常口语和缩写（I\'ll、we\'re、can\'t），像司机说话，不像客服念稿；整句控制在 12 个单词以内。'
+        : '4. 中文用司机平时说的话（赶时间、刷卡、靠边停、再等我两分钟），不要书面语；整句控制在 25 个字以内。',
+      '5. 地名、酒店名、机场名保留原来的写法，不要翻译成字面意思。',
+      '',
+      '术语：' + GLOSSARY_HINT + '。',
+      toEn
+        ? '风格参考（不要直译成右边之外的说法）：你到了吗→Are you here yet?；我马上到→I\'ll be right there.；不用着急→Take your time.；这儿不能停车→I can\'t stop here.；往前一点停行吗→Can I pull up a bit further?'
+        : '风格参考：Pull over here→在这儿停就行；I\'m late→我赶时间；No rush→不着急；Can I pay by card→能刷卡吗。',
+      '',
+      '输出必须是 JSON：{"translation":"译文","alt":"同一句更口语的另一种说法，没有就空字符串",'
+        + '"note":"给司机的一句中文提醒，例如乘客没听懂时可以怎么比划或怎么做，没有就空字符串"}'
     ].join('\n');
+    const ctx = opts.context ? '对话上文（只用来理解指代，不要翻译）：\n' + opts.context + '\n\n' : '';
     return [
       { role: 'system', content: system },
-      { role: 'user', content: '把下面这段' + from + '翻译成' + to + '：\n"""' + String(opts.text || '').trim() + '"""' }
+      { role: 'user', content: ctx + '翻译这一句：\n"""' + String(opts.text || '').trim() + '"""' }
     ];
   }
 
-  /** 容错解析模型返回的 JSON */
+  function unescapeJsonString(s) {
+    return String(s)
+      .replace(/\\n/g, ' ')
+      .replace(/\\"/g, '"')
+      .replace(/\\u([0-9a-fA-F]{4})/g, function (m, h) { return String.fromCharCode(parseInt(h, 16)); })
+      .replace(/\\\\/g, '\\');
+  }
+
+  /** 从可能被截断的 JSON 文本里取某个字段 */
+  function extractField(text, field) {
+    const closed = text.match(new RegExp('"' + field + '"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"'));
+    if (closed) return unescapeJsonString(closed[1]).trim();
+    const open = text.match(new RegExp('"' + field + '"\\s*:\\s*"([\\s\\S]*)$'));
+    if (open) return unescapeJsonString(open[1].replace(/["}]+\s*$/, '')).trim();
+    return '';
+  }
+
+  /** 容错解析模型返回的 JSON：正常 JSON、被截断的 JSON、纯文本都能处理 */
   function parseEngineReply(raw) {
     if (raw == null) return null;
     let text = String(raw).trim();
@@ -408,11 +436,27 @@
       try {
         const obj = JSON.parse(text.slice(start, end + 1));
         if (obj && typeof obj.translation === 'string') {
-          return { translation: obj.translation.trim(), note: String(obj.note || '').trim() };
+          return {
+            translation: tidy(obj.translation),
+            alt: tidy(obj.alt),
+            note: tidy(obj.note)
+          };
         }
-      } catch (e) { /* 继续按纯文本处理 */ }
+      } catch (e) { /* 走下面的容错提取 */ }
     }
-    return { translation: text.replace(/^["“]|["”]$/g, '').trim(), note: '' };
+    if (start >= 0) {
+      const t = extractField(text.slice(start), 'translation');
+      if (t) {
+        return { translation: t, alt: extractField(text.slice(start), 'alt'), note: extractField(text.slice(start), 'note') };
+      }
+    }
+    return { translation: text.replace(/^["“]|["”]$/g, '').trim(), alt: '', note: '' };
+  }
+
+  /** 去掉换行和多余空格，语音播报和屏幕显示都用同一份干净文本 */
+  function tidy(value) {
+    if (value == null) return '';
+    return String(value).replace(/\s*\n+\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
   }
 
   /* ---------------------------------------------------------------
