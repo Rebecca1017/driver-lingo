@@ -50,9 +50,9 @@
       id: 'price', name: '费用与支付', icon: '💰',
       items: [
         { zh: '车费是平台自动计算的，不是我定的。', en: 'The fare is calculated automatically by the app, not by me.' },
-        { zh: '平台显示车费是58.6元。', en: 'The fare shown in the app is 58.6 yuan.', critical: true },
-        { zh: '高速费需要另外支付。', en: 'The toll is charged separately.' },
-        { zh: '可以在App里直接支付。', en: 'You can pay directly in the app.' },
+        { zh: '平台显示车费是58.6元。', en: "It's 58.6 yuan on the app.", critical: true },
+        { zh: '高速费需要另外支付。', en: 'The toll is separate.' },
+        { zh: '可以在App里直接支付。', en: 'You can just pay in the app.' },
         { zh: '也可以用微信或支付宝。', en: 'You can also use WeChat Pay or Alipay.' },
         { zh: '我这里不收现金，抱歉。', en: "Sorry, I can't take cash." }
       ]
@@ -62,7 +62,7 @@
       items: [
         { zh: '请稍等，我马上到。', en: "Please wait a moment. I'll be right there." },
         { zh: '我可以免费等您5分钟。', en: 'I can wait for you for 5 minutes at no charge.', critical: true },
-        { zh: '超过免费等待时间，平台会计算等待费。', en: 'After the free waiting time, the app will charge a waiting fee.' },
+        { zh: '超过免费等待时间，平台会计算等待费。', en: 'After that, the app charges a waiting fee.' },
         { zh: '您大概还需要多久？', en: 'How much longer do you need?' },
         { zh: '我在这里等您，不着急。', en: "I'll wait here. Take your time." }
       ]
@@ -71,8 +71,8 @@
       id: 'luggage', name: '行李', icon: '🧳',
       items: [
         { zh: '需要我帮您把行李放到后备箱吗？', en: 'Would you like me to put your luggage in the trunk?' },
-        { zh: '后备箱在这里。', en: 'The trunk is over here.' },
-        { zh: '行李有点大，可能放不下。', en: 'The luggage is a bit big and may not fit.' },
+        { zh: '后备箱在这里。', en: "The trunk's back here." },
+        { zh: '行李有点大，可能放不下。', en: 'Your bag might be too big for the trunk.' },
         { zh: '下车请带好您的行李。', en: 'Please take your luggage with you when you get out.' }
       ]
     },
@@ -80,7 +80,7 @@
       id: 'arrive', name: '到达与下车', icon: '🏁',
       items: [
         { zh: '我们到了。', en: 'Here we are.' },
-        { zh: '请在路边下车，注意后面的车。', en: 'Please get out on the roadside and watch for cars behind you.' },
+        { zh: '请在路边下车，注意后面的车。', en: 'Please get out on the curb side — watch for cars.' },
         { zh: '请带好随身物品。', en: 'Please take all your belongings.' },
         { zh: '麻烦给我五星好评，谢谢！', en: 'Could you give me a five-star rating? Thank you!' },
         { zh: '祝您旅途愉快！', en: 'Have a nice trip!' },
@@ -105,7 +105,7 @@
         { zh: '抱歉，我不会说英语，我们用翻译软件沟通。', en: "Sorry, I don't speak English. Let's use a translation app." },
         { zh: '请说慢一点，谢谢。', en: 'Please speak a little slower. Thank you.' },
         { zh: '请再说一遍。', en: 'Could you say that again?' },
-        { zh: '我明白了。', en: 'I got it.' },
+        { zh: '我明白了。', en: 'Got it.' },
         { zh: '请您在手机上打出来给我看。', en: 'Could you type it on your phone and show me?' },
         { zh: '我找工作人员来帮我们。', en: "I'll ask the staff to help us." }
       ]
@@ -464,10 +464,10 @@
    * ------------------------------------------------------------- */
   const OFFLINE_RULES = [
     { re: /(\d+)\s*[块元]\s*(\d)(?!\d)/,
-      en: (m) => 'The fare shown in the app is ' + m[1] + '.' + m[2] + ' yuan.',
+      en: (m) => "It's " + m[1] + '.' + m[2] + ' yuan on the app.',
       zh: (m) => '平台显示车费是' + m[1] + '.' + m[2] + '元。' },
     { re: /(\d+(?:\.\d+)?)\s*[块元]/,
-      en: (m) => 'The fare shown in the app is ' + m[1] + ' yuan.',
+      en: (m) => "It's " + m[1] + ' yuan on the app.',
       zh: (m) => '平台显示车费是' + m[1] + '元。' },
     { re: /(\d+)\s*分钟/,
       en: (m) => 'It takes about ' + m[1] + ' minutes.',
