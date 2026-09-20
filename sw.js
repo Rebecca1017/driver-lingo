@@ -1,6 +1,10 @@
-/* 离线缓存：让页面和常用表达库在没有信号时也能打开
- * 翻译引擎的请求是同源以外的地址，这里完全不拦截。 */
-var CACHE = 'driver-lingo-v2';
+/* 缓存策略：
+ * - 页面和脚本（index.html / logic.js / config.js）走「先网络、后缓存」，
+ *   保证每次发新版本，用户刷新就能拿到，不会一直跑旧代码；
+ * - 图标等静态资源走「先缓存」；
+ * - 翻译引擎的请求是跨域的，完全不拦截。
+ */
+var CACHE = 'driver-lingo-v3';
 var ASSETS = [
   './',
   './index.html',
@@ -34,14 +38,22 @@ self.addEventListener('fetch', function (e) {
   try { url = new URL(req.url); } catch (err) { return; }
   if (url.origin !== self.location.origin) return;   // 翻译接口等外部请求直接放行
 
-  if (req.mode === 'navigate') {
+  // 页面本身和三个脚本一律先问网络，保证更新能立刻生效
+  var freshFirst = req.mode === 'navigate'
+    || /\/(index\.html|logic\.js|config\.js|manifest\.webmanifest)$/.test(url.pathname)
+    || /\/$/.test(url.pathname);
+
+  if (freshFirst) {
     e.respondWith(
       fetch(req).then(function (res) {
         var copy = res.clone();
-        caches.open(CACHE).then(function (c) { c.put('./index.html', copy); });
+        caches.open(CACHE).then(function (c) { c.put(req, copy); });
         return res;
       }).catch(function () {
-        return caches.match('./index.html');
+        return caches.match(req).then(function (hit) {
+          if (hit) return hit;
+          return caches.match('./index.html');
+        });
       })
     );
     return;

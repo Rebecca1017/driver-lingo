@@ -1480,7 +1480,16 @@
       }
     }
     if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-      navigator.serviceWorker.register('sw.js').catch(function () {});
+      navigator.serviceWorker.register('sw.js').then(function (reg) {
+        if (reg && reg.update) reg.update();   // 每次打开都检查有没有新版本
+      }).catch(function () {});
+      // 新版本接管后自动刷新一次，避免手机上一直跑旧代码
+      var reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (reloaded) return;
+        reloaded = true;
+        try { location.reload(); } catch (e) {}
+      });
     }
   }
   document.addEventListener('DOMContentLoaded', init);
