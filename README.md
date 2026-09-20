@@ -161,6 +161,29 @@ window.APP_CONFIG = {
 - 未填 Key 时的行为：首页提示可填自己的 Key，设置页显示“内置服务已打开，但应用方还没有填 Key”，翻译自动走离线表达库；
 - 逻辑层 24 项单元测试（关键信息识别、中文数字解析、数字一致性、表达库匹配、离线兜底、引擎返回解析）全部通过。
 
+## 六之一、翻译为什么听起来像人话了（V1.1 优化记录）
+
+第一版翻译确实很"机器"：句子生硬、客套话逐字直译。原因是提示词把模型当成了翻译软件，而且 DeepSeek 的两个模型默认会先"深度思考"——v4-pro 平均要 16 秒才出结果，flash 还经常因为思考占满 token 而返回空内容。改法有四条：
+
+1. **换角色**：提示词从"翻译助手"改成"坐在副驾上帮司机沟通的老翻译"，目标是让对方立刻听懂并照做，而不是逐字对应。
+2. **给风格对照**：直接告诉它哪些别用、哪些要用。例如「不用着急」→ Take your time.（不是 There is no need to hurry.）、「这儿不能停车」→ I can't stop here.（不是 Parking is not permitted here.）。目标语言是中文时同理，用司机平时说的话（赶时间、刷卡、靠边停）。
+3. **关掉深度思考**：请求里加 `thinking: {type: "disabled"}`，延迟从十几秒降到 1 秒左右，也不会再出现空回复。（这个参数只在 DeepSeek 接口下发送，换成其他服务商不会报错。）
+4. **加三样东西**：最近三轮对话作为上文（让"就停这儿"这类指代能翻对）；一句更口语的备选说法（结果卡上点「🔁 换个说法」就能切换并重新朗读）；一句给司机的提醒（例如"指一下手机账单给乘客看"）。
+
+效果对照（真实接口输出）：
+
+| 司机说的 | 优化前 | 优化后 |
+| --- | --- | --- |
+| 不用着急，我等您。 | Take your time, I'll wait for you. | Take your time, I'll wait. + 提醒：摆摆手、指指手表 |
+| 车费是平台自动算的，不是我定的。 | The fare is calculated automatically by the app, not set by me. | The app sets the fare, not me. |
+| 这儿停不了车，前面一点可以吗？ | I can't stop here. Is a little further ahead okay? | I can't stop here. Can I pull up a bit further?（备选：Can't stop here—okay if I pull up a bit?） |
+| 请在3号出口等我，我的车牌尾号是8899。 | Please wait for me at Exit 3, the last digits of my plate are 8899. | Wait at Exit 3, my plate ends in 8899. |
+| Can you pull over at the corner? | 你可以靠边停车吗？ | 能在拐角停一下吗？ |
+
+模型选择：默认 `deepseek-flash`，实测平均 0.9 秒、最慢 1.0 秒，一句话几厘钱。想要更细致可以换成 `deepseek-v4-pro`（平均 1.8 秒）。两者都在 `config.js` 里改一行。
+
+另外修了一个隐患：以前如果模型输出被截断，花括号和 JSON 字段会被当成译文念给乘客听；现在解析器能从截断的 JSON 里把译文抠出来，不会再出现这种情况。
+
 还没验证 / 需要注意：
 
 - **真机语音识别没实测过**（开发环境拿不到麦克风）。首次使用请先允许麦克风权限；如果失败，请把手机上看到的具体提示告诉开发同学。
