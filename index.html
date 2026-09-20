@@ -946,10 +946,11 @@
     };
 
     if (engineReady()) {
-      engineTranslate(text, target).then(function (res) {
+      engineTranslateWithRetry(text, target).then(function (res) {
         run(res, '', warnFor(text, res.translation));
       }).catch(function (err) {
-        offline('翻译引擎出错（' + (err && err.message ? err.message : '网络问题') + '），已改用离线匹配');
+        var why = err && err.status >= 500 ? '翻译服务临时繁忙' : (err && err.name === 'AbortError' ? '翻译服务响应太慢' : '翻译服务暂时用不了');
+        offline(why + '，这句改用离线常用表达；可以再点一次，或换一句简单说法');
       });
     } else {
       offline('');
@@ -982,13 +983,15 @@
   }
 
   /* ---------------- 翻译引擎调用 ---------------- */
-  function engineTranslate(text, target) {
-    var engine = activeEngine();
+  function engineTranslate(text, target, modelOverride, timeoutMs) {
+    var engine = modelOverride
+      ? { baseUrl: activeEngine().baseUrl, apiKey: activeEngine().apiKey, model: modelOverride, source: activeEngine().source }
+      : activeEngine();
     if (!engine) return Promise.reject(new Error('没有可用的翻译引擎'));
     var base = String(engine.baseUrl || '').replace(/\/+$/, '');
     var url = base + '/chat/completions';
     var ctl = new AbortController();
-    var timer = setTimeout(function () { ctl.abort(); }, 15000);
+    var timer = setTimeout(function () { ctl.abort(); }, timeoutMs || 10000);
     var payload = {
       model: engine.model,
       messages: L.buildMessages({
@@ -1009,9 +1012,9 @@
       body: JSON.stringify(payload)
     }).then(function (res) {
       if (!res.ok) {
-        return res.text().catch(function () { return ''; }).then(function (t) {
-          throw new Error('接口返回 ' + res.status + ' ' + String(t).slice(0, 100));
-        });
+        var err = new Error('接口返回 ' + res.status);
+        err.status = res.status;
+        return res.text().catch(function () { return ''; }).then(function () { throw err; });
       }
       return res.json();
     }).then(function (data) {
@@ -1021,6 +1024,31 @@
       if (engine.source === 'builtin') bumpUsage();
       return parsed;
     }).finally(function () { clearTimeout(timer); });
+  }
+
+  /* 模型偶尔会忙（DeepSeek 的 503「Service is too busy」），先原地重试，
+     再换另一个模型重试一次，都不行才回落到离线表达库。 */
+  function engineTranslateWithRetry(text, target) {
+    var engine = activeEngine();
+    if (!engine) return Promise.reject(new Error('没有可用的翻译引擎'));
+    var isDeepSeek = String(engine.baseUrl || '').indexOf('deepseek') >= 0;
+    var spare = null;
+    if (isDeepSeek) {
+      spare = engine.model === 'deepseek-flash' ? 'deepseek-v4-pro'
+        : (engine.model === 'deepseek-v4-pro' ? 'deepseek-flash' : null);
+    }
+    var wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+    var busy = function (err) {
+      return err && (err.status >= 500 || err.status === 429 || err.name === 'AbortError');
+    };
+
+    return engineTranslate(text, target, null, 9000).catch(function (err1) {
+      if (!busy(err1) || !spare) throw err1;
+      return wait(600).then(function () { return engineTranslate(text, target, null, 9000); }).catch(function (err2) {
+        if (!busy(err2)) throw err2;
+        return wait(600).then(function () { return engineTranslate(text, target, spare, 9000); });
+      });
+    });
   }
 
   /** 最近三轮对话，用来让翻译理解指代（例如「就停这儿」指代上一句的地址） */

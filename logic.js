@@ -462,23 +462,35 @@
   /* ---------------------------------------------------------------
    * 6. 无翻译引擎时的离线兜底：规则翻译 + 表达库匹配
    * ------------------------------------------------------------- */
+  /* 数字既可能是阿拉伯数字，也可能是「十块」「五分钟」这类中文数字 */
+  const NUM_CN = '([0-9０-９零〇一二两三四五六七八九十百千万幺]+)';
+  function toNumber(token) {
+    const t = String(token).replace(/[０-９]/g, (c) => String(FULLWIDTH_MAP.indexOf(c)));
+    if (/^\d+(?:\.\d+)?$/.test(t)) return t;
+    const v = cnToNumber(t);
+    return v > 0 ? String(v) : t;
+  }
+
   const OFFLINE_RULES = [
-    { re: /(\d+)\s*[块元]\s*(\d)(?!\d)/,
+    { re: /([0-9]+)\s*[块元]\s*([0-9])(?!\d)/,
       en: (m) => "It's " + m[1] + '.' + m[2] + ' yuan on the app.',
       zh: (m) => '平台显示车费是' + m[1] + '.' + m[2] + '元。' },
-    { re: /(\d+(?:\.\d+)?)\s*[块元]/,
-      en: (m) => "It's " + m[1] + ' yuan on the app.',
-      zh: (m) => '平台显示车费是' + m[1] + '元。' },
-    { re: /(\d+)\s*分钟/,
-      en: (m) => 'It takes about ' + m[1] + ' minutes.',
-      zh: (m) => '大概需要' + m[1] + '分钟。' },
-    { re: /(\d+)\s*号出口/,
-      en: (m) => 'Please wait for me at Exit ' + m[1] + '.',
-      zh: (m) => '请在' + m[1] + '号出口等我。' },
-    { re: /(\d+)\s*号航站楼|T(\d)/,
-      en: (m) => 'Terminal ' + (m[1] || m[2]) + '.',
-      zh: (m) => (m[1] || m[2]) + '号航站楼。' },
-    { re: /尾号\s*(\d{3,4})|车牌尾号(\d{3,4})/,
+    { re: new RegExp('([0-9零〇一二两三四五六七八九十百千万幺]+)\\s*[块元]\\s*([0-9一二三四五六七八九])(?![0-9一二三四五六七八九])'),
+      en: (m) => "It's " + toNumber(m[1]) + '.' + toNumber(m[2]) + ' yuan on the app.',
+      zh: (m) => '平台显示车费是' + toNumber(m[1]) + '.' + toNumber(m[2]) + '元。' },
+    { re: new RegExp(NUM_CN + '\\s*[块元]'),
+      en: (m) => "It's " + toNumber(m[1]) + ' yuan on the app.',
+      zh: (m) => '平台显示车费是' + toNumber(m[1]) + '元。' },
+    { re: new RegExp(NUM_CN + '\\s*分钟'),
+      en: (m) => 'It takes about ' + toNumber(m[1]) + ' minutes.',
+      zh: (m) => '大概需要' + toNumber(m[1]) + '分钟。' },
+    { re: new RegExp(NUM_CN + '\\s*号出口'),
+      en: (m) => 'Please wait for me at Exit ' + toNumber(m[1]) + '.',
+      zh: (m) => '请在' + toNumber(m[1]) + '号出口等我。' },
+    { re: new RegExp(NUM_CN + '\\s*号航站楼|T([0-9])'),
+      en: (m) => 'Terminal ' + toNumber(m[1] || m[2]) + '.',
+      zh: (m) => toNumber(m[1] || m[2]) + '号航站楼。' },
+    { re: new RegExp('尾号\\s*([0-9]{3,4})|车牌尾号([0-9]{3,4})'),
       en: (m) => 'The plate number ends with ' + (m[1] || m[2]) + '.',
       zh: (m) => '车牌尾号是' + (m[1] || m[2]) + '。' }
   ];
